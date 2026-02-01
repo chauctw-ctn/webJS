@@ -1,0 +1,460 @@
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const { TVA_STATION_COORDINATES } = require('./tva-coordinates');
+const { MQTT_STATION_COORDINATES } = require('./mqtt-coordinates');
+const { connectMQTT, getConnectionStatus } = require('./mqtt_client');
+const { exec } = require('child_process');
+const { 
+    initDatabase, 
+    saveTVAData, 
+    saveMQTTData, 
+    getStatsData,
+    getAvailableParameters,
+    getStations: getStationsFromDB,
+    cleanOldData
+} = require('./database');
+
+const app = express();
+const PORT = 3000;
+
+// Middleware để serve static files
+app.use(express.static('public'));
+app.use(express.json());
+
+/**
+ * Cập nhật dữ liệu TVA từ getKeyTVA.js
+ */
+function updateTVAData() {
+    console.log('🔄 Đang cập nhật dữ liệu TVA...');
+    
+    exec('node getKeyTVA.js', async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`❌ Lỗi cập nhật TVA: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.error(`⚠️ Warning TVA: ${stderr}`);
+        }
+        console.log('✅ Đã cập nhật dữ liệu TVA');
+        
+        // Lưu dữ liệu TVA vào database
+        await saveTVADataToDB();
+    });
+}
+
+/**
+ * Lưu dữ liệu TVA từ file JSON vào database
+ */
+async function saveTVADataToDB() {
+    try {
+        if (!fs.existsSync('data_quantrac.json')) {
+            console.warn('⚠️ Không tìm thấy file data_quantrac.json');
+            return;
+        }
+        
+        const tvaData = JSON.parse(fs.readFileSync('data_quantrac.json', 'utf8'));
+        const count = await saveTVAData(tvaData.stations);
+        console.log(`💾 Đã lưu ${count} bản ghi TVA vào database`);
+    } catch (error) {
+        console.error('❌ Lỗi lưu dữ liệu TVA vào database:', error.message);
+    }
+}
+
+/**
+ * Lưu dữ liệu MQTT từ file JSON vào database
+ */
+async function saveMQTTDataToDB() {
+    try {
+        if (!fs.existsSync('data_mqtt.json')) {
+            console.warn('⚠️ Không tìm thấy file data_mqtt.json');
+            return;
+        }
+        
+        const mqttData = JSON.parse(fs.readFileSync('data_mqtt.json', 'utf8'));
+        const count = await saveMQTTData(mqttData.stations);
+        console.log(`💾 Đã lưu ${count} bản ghi MQTT vào database`);
+    } catch (error) {
+        console.error('❌ Lỗi lưu dữ liệu MQTT vào database:', error.message);
+    }
+}
+
+/**
+ * API: Lấy dữ liệu tất cả các trạm (TVA + MQTT)
+ */
+app.get('/api/stations', (req, res) => {
+    try {
+        const allStations = [];
+        
+        // Đọc dữ liệu TVA
+        if (fs.existsSync('data_quantrac.json')) {
+            const tvaData = JSON.parse(fs.readFileSync('data_quantrac.json', 'utf8'));
+            
+            tvaData.stations.forEach(station => {
+                const coords = TVA_STATION_COORDINATES[station.station];
+                
+                if (coords) {
+                    allStations.push({
+                        id: `tva_${station.station.replace(/\s+/g, '_')}`,
+                        name: station.station,
+                        type: 'TVA',
+                        lat: coords.lat,
+                        lng: coords.lng,
+                        updateTime: station.updateTime,
+                        data: station.data,
+                        timestamp: tvaData.timestamp
+                    });
+                }
+            });
+        }
+        
+        // Đọc dữ liệu MQTT
+        if (fs.existsSync('data_mqtt.json')) {
+            const mqttData = JSON.parse(fs.readFileSync('data_mqtt.json', 'utf8'));
+            
+            mqttData.stations.forEach(station => {
+                if (station.lat && station.lng) {
+                    allStations.push({
+                        id: `mqtt_${station.station.replace(/\s+/g, '_')}`,
+                        name: station.station,
+                        type: 'MQTT',
+                        lat: station.lat,
+                        lng: station.lng,
+                        updateTime: station.updateTime,
+                        data: station.data,
+                        timestamp: mqttData.timestamp
+                    });
+                }
+            });
+        }
+        
+        res.json({
+            success: true,
+            totalStations: allStations.length,
+            stations: allStations,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * API: Lấy dữ liệu chỉ trạm TVA
+ */
+app.get('/api/stations/tva', (req, res) => {
+    try {
+        if (!fs.existsSync('data_quantrac.json')) {
+            return res.status(404).json({
+                success: false,
+                error: 'Không tìm thấy dữ liệu TVA'
+            });
+        }
+        
+        const tvaData = JSON.parse(fs.readFileSync('data_quantrac.json', 'utf8'));
+        
+        const stations = tvaData.stations.map(station => {
+            const coords = TVA_STATION_COORDINATES[station.station];
+            return {
+                id: `tva_${station.station.replace(/\s+/g, '_')}`,
+                name: station.station,
+                type: 'TVA',
+                lat: coords?.lat,
+                lng: coords?.lng,
+                updateTime: station.updateTime,
+                data: station.data
+            };
+        }).filter(s => s.lat && s.lng);
+        
+        res.json({
+            success: true,
+            totalStations: stations.length,
+            stations: stations,
+            timestamp: tvaData.timestamp
+        });
+        
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * API: Lấy dữ liệu chỉ trạm MQTT
+ */
+app.get('/api/stations/mqtt', (req, res) => {
+    try {
+        if (!fs.existsSync('data_mqtt.json')) {
+            return res.status(404).json({
+                success: false,
+                error: 'Không tìm thấy dữ liệu MQTT'
+            });
+        }
+        
+        const mqttData = JSON.parse(fs.readFileSync('data_mqtt.json', 'utf8'));
+        
+        const stations = mqttData.stations.filter(s => s.lat && s.lng).map(station => ({
+            id: `mqtt_${station.station.replace(/\s+/g, '_')}`,
+            name: station.station,
+            type: 'MQTT',
+            lat: station.lat,
+            lng: station.lng,
+            updateTime: station.updateTime,
+            data: station.data
+        }));
+        
+        res.json({
+            success: true,
+            totalStations: stations.length,
+            stations: stations,
+            timestamp: mqttData.timestamp
+        });
+        
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * API: Lấy thông tin chi tiết một trạm
+ */
+app.get('/api/station/:id', (req, res) => {
+    try {
+        const stationId = req.params.id;
+        const [type, ...nameParts] = stationId.split('_');
+        
+        let stationData = null;
+        
+        if (type === 'tva' && fs.existsSync('data_quantrac.json')) {
+            const tvaData = JSON.parse(fs.readFileSync('data_quantrac.json', 'utf8'));
+            const station = tvaData.stations.find(s => 
+                s.station.replace(/\s+/g, '_') === nameParts.join('_')
+            );
+            
+            if (station) {
+                const coords = TVA_STATION_COORDINATES[station.station];
+                stationData = {
+                    id: stationId,
+                    name: station.station,
+                    type: 'TVA',
+                    lat: coords?.lat,
+                    lng: coords?.lng,
+                    updateTime: station.updateTime,
+                    data: station.data,
+                    timestamp: tvaData.timestamp
+                };
+            }
+        } else if (type === 'mqtt' && fs.existsSync('data_mqtt.json')) {
+            const mqttData = JSON.parse(fs.readFileSync('data_mqtt.json', 'utf8'));
+            const station = mqttData.stations.find(s => 
+                s.station.replace(/\s+/g, '_') === nameParts.join('_')
+            );
+            
+            if (station) {
+                stationData = {
+                    id: stationId,
+                    name: station.station,
+                    type: 'MQTT',
+                    lat: station.lat,
+                    lng: station.lng,
+                    updateTime: station.updateTime,
+                    data: station.data,
+                    timestamp: mqttData.timestamp
+                };
+            }
+        }
+        
+        if (stationData) {
+            res.json({
+                success: true,
+                station: stationData
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                error: 'Không tìm thấy trạm'
+            });
+        }
+        
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * API: Lấy dữ liệu thống kê từ database
+ */
+app.get('/api/stats', async (req, res) => {
+    try {
+        const {
+            stations,      // Danh sách ID trạm, phân cách bởi dấu phẩy
+            type,          // 'all', 'TVA', 'MQTT'
+            parameter,     // Tên thông số hoặc 'all'
+            startDate,     // Ngày bắt đầu (YYYY-MM-DD)
+            endDate,       // Ngày kết thúc (YYYY-MM-DD)
+            limit          // Giới hạn số bản ghi
+        } = req.query;
+
+        const options = {
+            stationIds: stations ? stations.split(',') : [],
+            stationType: type || 'all',
+            parameterName: parameter || 'all',
+            startDate: startDate,
+            endDate: endDate,
+            limit: limit ? parseInt(limit) : 10000
+        };
+
+        const data = await getStatsData(options);
+        
+        res.json({
+            success: true,
+            totalRecords: data.length,
+            data: data,
+            query: options
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * API: Lấy danh sách các thông số có sẵn
+ */
+app.get('/api/stats/parameters', async (req, res) => {
+    try {
+        const parameters = await getAvailableParameters();
+        res.json({
+            success: true,
+            parameters: parameters
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * API: Lấy danh sách trạm từ database
+ */
+app.get('/api/stats/stations', async (req, res) => {
+    try {
+        const stations = await getStationsFromDB();
+        res.json({
+            success: true,
+            totalStations: stations.length,
+            stations: stations
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Route chính
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// API: Lấy trạng thái kết nối MQTT
+app.get('/api/mqtt/status', (req, res) => {
+    const status = getConnectionStatus();
+    res.json({
+        success: true,
+        ...status
+    });
+});
+
+// Khởi động server
+app.listen(PORT, async () => {
+    console.log('╔═══════════════════════════════════════════════════════════════════════════╗');
+    console.log('║           WEB SERVER - HỆ THỐNG QUAN TRẮC NƯỚC CA MAU                   ║');
+    console.log('╚═══════════════════════════════════════════════════════════════════════════╝');
+    console.log(`\n🚀 Server đang chạy tại: http://localhost:${PORT}`);
+    console.log(`📡 API endpoint: http://localhost:${PORT}/api/stations`);
+    console.log(`\n📍 Các API có sẵn:`);
+    console.log(`   • GET /api/stations          - Lấy tất cả trạm (TVA + MQTT)`);
+    console.log(`   • GET /api/stations/tva      - Lấy chỉ trạm TVA`);
+    console.log(`   • GET /api/stations/mqtt     - Lấy chỉ trạm MQTT`);
+    console.log(`   • GET /api/station/:id       - Lấy chi tiết một trạm`);
+    console.log(`   • GET /api/stats             - Lấy dữ liệu thống kê từ SQL`);
+    console.log(`   • GET /api/stats/parameters  - Lấy danh sách thông số`);
+    console.log(`   • GET /api/stats/stations    - Lấy danh sách trạm từ SQL`);
+    console.log(`   • GET /api/mqtt/status       - Trạng thái kết nối MQTT`);
+    console.log(`\n💡 Mở trình duyệt và truy cập http://localhost:${PORT} để xem bản đồ`);
+    console.log(`\nPress Ctrl+C để dừng server.\n`);
+    
+    // Khởi tạo database
+    console.log('💾 Đang khởi tạo database...');
+    try {
+        await initDatabase();
+        console.log('✅ Database đã sẵn sàng\n');
+    } catch (error) {
+        console.error('❌ Lỗi khởi tạo database:', error.message);
+    }
+    
+    // Khởi động MQTT client
+    console.log('🔌 Đang khởi động MQTT client...');
+    try {
+        await connectMQTT();
+        console.log('✅ MQTT client đã kết nối\n');
+    } catch (error) {
+        console.error('❌ Lỗi kết nối MQTT:', error.message);
+        console.log('⚠️ Server vẫn chạy nhưng không có dữ liệu MQTT realtime\n');
+    }
+    
+    // Cập nhật dữ liệu TVA ngay khi start
+    console.log('📊 Đang tải dữ liệu TVA lần đầu...');
+    updateTVAData();
+    
+    // Lưu dữ liệu MQTT hiện tại vào database
+    console.log('📊 Đang lưu dữ liệu MQTT hiện tại...');
+    await saveMQTTDataToDB();
+    
+    // Cập nhật dữ liệu TVA mỗi 5 phút
+    setInterval(() => {
+        updateTVAData();
+    }, 5 * 60 * 1000); // 5 phút
+    
+    // Lưu dữ liệu MQTT mỗi 5 phút
+    setInterval(async () => {
+        await saveMQTTDataToDB();
+    }, 5 * 60 * 1000); // 5 phút
+    
+    // Dọn dẹp dữ liệu cũ mỗi ngày (giữ lại 90 ngày)
+    setInterval(async () => {
+        console.log('🧹 Đang dọn dẹp dữ liệu cũ...');
+        try {
+            await cleanOldData(90);
+            console.log('✅ Đã dọn dẹp dữ liệu cũ hơn 90 ngày');
+        } catch (error) {
+            console.error('❌ Lỗi dọn dẹp dữ liệu:', error.message);
+        }
+    }, 24 * 60 * 60 * 1000); // 24 giờ
+    
+    console.log('🔄 Tự động lưu dữ liệu vào SQL mỗi 5 phút\n');
+});
+
+// Xử lý khi thoát
+process.on('SIGINT', () => {
+    console.log('\n\n🛑 Đang dừng server...');
+    process.exit(0);
+});

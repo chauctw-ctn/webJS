@@ -1,0 +1,25 @@
+{
+  "name": "camau-water-monitoring",
+  "version": "1.0.0",
+  "description": "Hệ thống quan trắc nước ngầm - Công ty Cấp nước Cà Mau",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "mqtt": "node mqtt_client.js",
+    "print": "node print_data.js"
+  },
+  "keywords": [
+    "mqtt",
+    "water-monitoring",
+    "camau",
+    "express",
+    "google-maps"
+  ],
+  "author": "Công ty Cấp nước Cà Mau",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mqtt": "^4.3.7",
+    "sqlite3": "^5.1.7"
+  }
+}

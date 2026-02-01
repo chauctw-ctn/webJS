@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIWATER - Hệ thống SCADA Quản lý Mạng lưới Cấp nước</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <button class="menu-btn" id="menu-btn">☰</button>
+            <div class="logo-section">
+                <div class="company-info">
+                    <h1>HỆ THỐNG SCADA QUẢN LÝ MẠNG LƯỚI CẤP NƯỚC</h1>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+            <!-- Dashboard Section -->
+            <div class="menu-section">
+                <button class="menu-item active" id="dashboard-btn">
+                    🏠 Dashboard
+                </button>
+            </div>
+
+            <!-- Filter Section (Visible only when Dashboard is active) -->
+            <div class="filter-section" id="filter-section">
+                <h4>Bộ lọc loại trạm</h4>
+                <div class="checkbox-list">
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="filter-all" value="all" checked>
+                        <span>Tất cả (<span id="total-count">0</span>)</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="filter-tva" value="tva" checked>
+                        <span class="filter-dot tva"></span>
+                        <span>TVA (<span id="tva-count">0</span>)</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="filter-mqtt" value="mqtt" checked>
+                        <span class="filter-dot mqtt"></span>
+                        <span>MQTT (<span id="mqtt-count">0</span>)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Station Dropdown Section -->
+            <div class="filter-section" id="station-list-section">
+                <h4>Danh sách trạm</h4>
+                <div class="multi-select-wrapper">
+                    <div class="multi-select-display" id="station-display">
+                        <span class="selected-text">Chọn trạm...</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="station-dropdown">
+                        <label class="checkbox-item station-all-item">
+                            <input type="checkbox" id="station-all-checkbox" class="station-all-checkbox">
+                            <span><strong>Tất cả trạm</strong></span>
+                        </label>
+                        <div class="dropdown-divider"></div>
+                        <div id="station-checkbox-list">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Section -->
+            <div class="menu-section">
+                <button class="menu-item" id="stats-toggle-btn">
+                    📊 Xem dữ liệu thống kê
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map" class="with-sidebar"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <p>Đang tải dữ liệu...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="map.js"></script>
+</body>
+</html>

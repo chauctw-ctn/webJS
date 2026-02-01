@@ -1,0 +1,658 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+/* Header */
+header {
+    background-color: #0066cc;
+    color: white;
+    padding: 0 20px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+header h1 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.header-right {
+    font-size: 14px;
+}
+
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    width: 280px;
+    height: calc(100vh - 56px);
+    background-color: #f8f9fa;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    z-index: 50;
+    transition: transform 0.3s ease;
+}
+
+.sidebar.hidden {
+    transform: translateX(-100%);
+}
+
+.sidebar-content {
+    padding: 20px;
+}
+
+/* Menu Section */
+.menu-section {
+    margin-bottom: 16px;
+}
+
+.menu-item {
+    width: 100%;
+    padding: 14px 18px;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    color: #374151;
+    transition: all 0.2s;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.menu-item:hover {
+    background: #f8f9fa;
+    border-color: #0066cc;
+    transform: translateX(4px);
+}
+
+.menu-item.active {
+    background: #0066cc;
+    color: white;
+    border-color: #0066cc;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+}
+
+.filter-section {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.filter-section h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+
+/* Checkbox List */
+.checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.checkbox-item:hover {
+    background: #f3f4f6;
+}
+
+.checkbox-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #0066cc;
+}
+
+.checkbox-item span {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.filter-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.filter-dot.tva {
+    background: #10b981;
+}
+
+.filter-dot.mqtt {
+    background: #fbbf24;
+}
+
+/* Main Content */
+main {
+    margin-top: 56px;
+    margin-left: 280px;
+    padding: 20px;
+    transition: margin-left 0.3s ease;
+}
+
+main.sidebar-hidden {
+    margin-left: 0;
+}
+
+.container {
+    max-width: 100%;
+    margin: 0;
+    background: white;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 20px;
+    height: calc(100vh - 56px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.page-title {
+    color: #0066cc;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Filters */
+.filters-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #555;
+}
+
+.filter-group select,
+.filter-group input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    background-color: white;
+}
+
+.filter-group select[multiple] {
+    min-height: 120px;
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+.date-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.date-inputs input {
+    flex: 1;
+}
+
+.date-inputs span {
+    color: #666;
+}
+
+.primary-btn {
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: auto;
+}
+
+.primary-btn:hover {
+    background-color: #0052a3;
+}
+
+.primary-btn:active {
+    background-color: #004182;
+}
+
+/* Multi-select with checkboxes */
+.multi-select-wrapper {
+    position: relative;
+}
+
+.multi-select-display {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+
+.multi-select-display:hover {
+    border-color: #0066cc;
+}
+
+.multi-select-display .selected-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.multi-select-display .arrow {
+    margin-left: 8px;
+    font-size: 10px;
+    color: #666;
+}
+
+.multi-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-top: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    display: none;
+}
+
+.multi-select-dropdown.open {
+    display: block;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.checkbox-item:hover {
+    background-color: #f5f5f5;
+}
+
+.checkbox-item input[type="checkbox"] {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.checkbox-item span {
+    font-size: 14px;
+}
+
+/* Table */
+.table-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    position: relative;
+    max-width: 100%;
+    flex: 1;
+    max-height: calc(100vh - 350px);
+}
+
+#stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 800px;
+}
+
+#stats-table thead {
+    background-color: #0066cc;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+#stats-table th {
+    padding: 12px 10px;
+    text-align: center;
+    font-weight: 600;
+    color: white;
+    border: 1px solid #ddd;
+    white-space: nowrap;
+    background-color: #0066cc;
+}
+
+/* Station header row styling */
+#stats-table th.station-header {
+    background-color: #0066cc;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 14px 10px;
+}
+
+/* Parameter header row styling - match date/time column style */
+#stats-table th.parameter-header {
+    background-color: #0066cc;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Đặt chiều rộng cố định cho cột Ngày và Giờ */
+#stats-table th:nth-child(1),
+#stats-table td:nth-child(1) {
+    min-width: 100px;
+    width: 100px;
+}
+
+#stats-table th:nth-child(2),
+#stats-table td:nth-child(2) {
+    min-width: 100px;
+    width: 100px;
+}
+
+/* Đặt chiều rộng cố định cho các cột dữ liệu */
+#stats-table th:nth-child(n+3),
+#stats-table td:nth-child(n+3) {
+    min-width: 120px;
+    width: 120px;
+}
+
+/* Cố định cột Ngày và Giờ khi cuộn ngang - CHỈ hàng đầu tiên */
+#stats-table thead tr:first-child th:nth-child(1),
+#stats-table thead tr:first-child th:nth-child(2) {
+    position: sticky;
+    z-index: 30;
+    background-color: #0066cc;
+}
+
+#stats-table thead tr:first-child th:nth-child(1) {
+    left: 0;
+}
+
+#stats-table thead tr:first-child th:nth-child(2) {
+    left: 100px;
+}
+
+/* Cố định cột Ngày và Giờ trong tbody */
+#stats-table tbody td:nth-child(1),
+#stats-table tbody td:nth-child(2) {
+    position: sticky;
+    z-index: 10;
+    background-color: white;
+    font-weight: 500;
+}
+
+#stats-table tbody td:nth-child(1) {
+    left: 0;
+}
+
+#stats-table tbody td:nth-child(2) {
+    left: 100px;
+}
+
+#stats-table tbody tr:nth-child(even) td:nth-child(1),
+#stats-table tbody tr:nth-child(even) td:nth-child(2) {
+    background-color: #f8f9fa;
+}
+
+#stats-table tbody tr:hover td {
+    background-color: #e3f2fd;
+}
+
+#stats-table td {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #e0e0e0;
+    white-space: nowrap;
+}
+
+#stats-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+/* Column colors - alternating colors for data cells only */
+#stats-table td:nth-child(3) {
+    background-color: #e3f2fd !important;
+}
+
+#stats-table td:nth-child(4) {
+    background-color: #f3e5f5 !important;
+}
+
+#stats-table td:nth-child(5) {
+    background-color: #e8f5e9 !important;
+}
+
+#stats-table td:nth-child(6) {
+    background-color: #fff3e0 !important;
+}
+
+#stats-table td:nth-child(7) {
+    background-color: #fce4ec !important;
+}
+
+#stats-table td:nth-child(8) {
+    background-color: #e0f2f1 !important;
+}
+
+#stats-table td:nth-child(9) {
+    background-color: #f1f8e9 !important;
+}
+
+#stats-table td:nth-child(10) {
+    background-color: #fef5e7 !important;
+}
+
+/* For columns beyond 10, use repeating pattern */
+#stats-table td:nth-child(8n+3) {
+    background-color: #e3f2fd !important;
+}
+
+#stats-table td:nth-child(8n+4) {
+    background-color: #f3e5f5 !important;
+}
+
+#stats-table td:nth-child(8n+5) {
+    background-color: #e8f5e9 !important;
+}
+
+#stats-table td:nth-child(8n+6) {
+    background-color: #fff3e0 !important;
+}
+
+#stats-table td:nth-child(8n+7) {
+    background-color: #fce4ec !important;
+}
+
+#stats-table td:nth-child(8n+8) {
+    background-color: #e0f2f1 !important;
+}
+
+#stats-table td:nth-child(8n+9) {
+    background-color: #f1f8e9 !important;
+}
+
+#stats-table td:nth-child(8n+10) {
+    background-color: #fef5e7 !important;
+}
+
+#stats-table tbody tr:hover td {
+    opacity: 0.9;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    padding: 15px 0;
+}
+
+.page-btn {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    background-color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.page-btn:hover {
+    background-color: #0066cc;
+    color: white;
+    border-color: #0066cc;
+}
+
+.page-btn:disabled {
+    background-color: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+    border-color: #ddd;
+}
+
+#page-info {
+    font-size: 14px;
+    color: #666;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* Loading state */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-size: 14px;
+}
+
+.loading::after {
+    content: '...';
+    animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+}
+
+/* No data message */
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .filters-container {
+        grid-template-columns: 1fr;
+    }
+    
+    header h1 {
+        font-size: 16px;
+    }
+    
+    .page-title {
+        font-size: 18px;
+    }
+    
+    main {
+        padding: 10px;
+    }
+    
+    .container {
+        padding: 15px;
+    }
+}
