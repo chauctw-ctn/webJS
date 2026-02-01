@@ -111,6 +111,19 @@ function initMap() {
         maxZoom: 20
     }).addTo(map);
     
+    // Fix: Cho phép zoom khi chuột ở trong popup
+    map.on('popupopen', function(e) {
+        const popupContainer = e.popup.getElement();
+        if (popupContainer) {
+            // Xóa class leaflet-container để không chặn scroll
+            const popupContent = popupContainer.querySelector('.leaflet-popup-content-wrapper');
+            if (popupContent) {
+                L.DomEvent.off(popupContent, 'mousewheel');
+                L.DomEvent.off(popupContent, 'MozMousePixelScroll');
+            }
+        }
+    });
+    
     // Tải dữ liệu ban đầu
     loadStations();
     
@@ -270,17 +283,21 @@ function displayMarkers(stations) {
             // Cập nhật checkbox tương ứng
             updateStationCheckbox(station.id, true);
             
-            // Fix zoom issue: cho phép scroll qua popup xuống map
+            // FIX: Cho phép zoom bằng scroll wheel khi chuột ở trong popup
             setTimeout(() => {
                 const popupEl = this.getPopup().getElement();
                 if (popupEl) {
-                    // Loại bỏ tất cả scroll event listeners của Leaflet
-                    const parent = popupEl.parentElement;
-                    if (parent) {
-                        L.DomEvent.off(parent, 'wheel');
-                        L.DomEvent.off(parent, 'mousewheel');
-                        L.DomEvent.off(popupEl, 'wheel');
-                        L.DomEvent.off(popupEl, 'mousewheel');
+                    const content = popupEl.querySelector('.leaflet-popup-content');
+                    if (content) {
+                        // Enable scroll propagation để map có thể zoom
+                        L.DomEvent.on(content, 'wheel', function(e) {
+                            // Tính toán zoom mới
+                            const delta = e.deltaY || e.detail || e.wheelDelta;
+                            const zoomDelta = delta > 0 ? -1 : 1;
+                            map.setZoom(map.getZoom() + zoomDelta);
+                            L.DomEvent.preventDefault(e);
+                            L.DomEvent.stopPropagation(e);
+                        });
                     }
                 }
             }, 50);
@@ -520,26 +537,31 @@ function updateStationCheckbox(stationId, isChecked) {
 }
 
 /**
- * Lọc trạm theo checkboxes (online/offline)
+ * Lọc trạm theo dropdown status filter
  */
 function filterStations() {
-    const filterAll = document.getElementById('filter-all');
-    const filterOnline = document.getElementById('filter-online');
-    const filterOffline = document.getElementById('filter-offline');
+    const statusFilter = document.getElementById('status-filter');
     
+    if (!statusFilter) {
+        displayMarkers(allStations);
+        return;
+    }
+    
+    const filterValue = statusFilter.value;
     let filteredStations = [];
     
-    if (filterAll && filterAll.checked) {
-        // Show all stations
-        filteredStations = allStations;
-    } else {
-        // Filter based on individual checkboxes
-        if (filterOnline && filterOnline.checked) {
-            filteredStations = filteredStations.concat(allStations.filter(s => !isStationOffline(s)));
-        }
-        if (filterOffline && filterOffline.checked) {
-            filteredStations = filteredStations.concat(allStations.filter(s => isStationOffline(s)));
-        }
+    switch(filterValue) {
+        case 'all':
+            filteredStations = allStations;
+            break;
+        case 'online':
+            filteredStations = allStations.filter(s => !isStationOffline(s));
+            break;
+        case 'offline':
+            filteredStations = allStations.filter(s => isStationOffline(s));
+            break;
+        default:
+            filteredStations = allStations;
     }
     
     displayMarkers(filteredStations);
@@ -620,48 +642,10 @@ function setupEventListeners() {
         });
     }
     
-    // Checkbox event listeners
-    const filterAll = document.getElementById('filter-all');
-    const filterOnline = document.getElementById('filter-online');
-    const filterOffline = document.getElementById('filter-offline');
-    
-    // "Tất cả" checkbox handler
-    if (filterAll) {
-        filterAll.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                // Check all other checkboxes
-                if (filterOnline) filterOnline.checked = true;
-                if (filterOffline) filterOffline.checked = true;
-            }
-            filterStations();
-        });
-    }
-    
-    // Individual checkbox handlers
-    if (filterOnline) {
-        filterOnline.addEventListener('change', () => {
-            // Uncheck "Tất cả" if individual is unchecked
-            if (!filterOnline.checked && filterAll) {
-                filterAll.checked = false;
-            }
-            // Check "Tất cả" if both are checked
-            if (filterOnline.checked && filterOffline && filterOffline.checked && filterAll) {
-                filterAll.checked = true;
-            }
-            filterStations();
-        });
-    }
-    
-    if (filterOffline) {
-        filterOffline.addEventListener('change', () => {
-            // Uncheck "Tất cả" if individual is unchecked
-            if (!filterOffline.checked && filterAll) {
-                filterAll.checked = false;
-            }
-            // Check "Tất cả" if both are checked
-            if (filterOffline.checked && filterOnline && filterOnline.checked && filterAll) {
-                filterAll.checked = true;
-            }
+    // Status filter dropdown event listener
+    const statusFilter = document.getElementById('status-filter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', () => {
             filterStations();
         });
     }
