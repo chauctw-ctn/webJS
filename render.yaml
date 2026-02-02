@@ -2,7 +2,7 @@ services:
   - type: web
     name: camau-water-monitoring
     runtime: node
-    buildCommand: npm install --production=false && npx node-pre-gyp install --fallback-to-build --directory=./node_modules/sqlite3
+    buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /api/stations
     disk:
