@@ -435,17 +435,38 @@ function createPopupContent(station) {
             <div class="popup-data">
     `;
     
+    // Kiểm tra xem có thông số mực nước và lưu lượng không
+    let hasWaterLevel = false;
+    let hasFlowRate = false;
+    
     // Hiển thị các thông số
     if (station.data && station.data.length > 0) {
         station.data.forEach(param => {
             // Làm ngắn tên thông số
             let shortName = param.name;
-            if (param.name.includes('Áp lực') || param.name.includes('Ap luc')) shortName = 'Áp lực';
-            else if (param.name.includes('Lưu lượng')) shortName = 'Lưu lượng';
-            else if (param.name.includes('Chỉ số')) shortName = 'Chỉ số đh';
-            else if (param.name.includes('Mực nước')) shortName = 'Mực nước';
-            else if (param.name.includes('Nhiệt độ')) shortName = 'Nhiệt độ';
-            else if (param.name.includes('Tổng')) shortName = 'Tổng LL';
+            const paramNameLower = param.name.toLowerCase();
+            
+            // Kiểm tra "tổng" trước để tránh trùng với "lưu lượng"
+            if (paramNameLower.includes('tổng')) {
+                shortName = 'Tổng LL';
+            }
+            else if (paramNameLower.includes('áp lực') || paramNameLower.includes('ap luc')) {
+                shortName = 'Áp lực';
+            }
+            else if (paramNameLower.includes('lưu lượng')) {
+                shortName = 'Lưu lượng';
+                hasFlowRate = true;
+            }
+            else if (paramNameLower.includes('chỉ số')) {
+                shortName = 'Chỉ số đh';
+            }
+            else if (paramNameLower.includes('mực nước') || paramNameLower.includes('muc nuoc')) {
+                shortName = 'Mực nước';
+                hasWaterLevel = true;
+            }
+            else if (paramNameLower.includes('nhiệt độ') || paramNameLower.includes('nhiet do')) {
+                shortName = 'Nhiệt độ';
+            }
             
             html += `
                 <div class="data-row">
@@ -459,7 +480,38 @@ function createPopupContent(station) {
     }
     
     html += `
-            </div>
+            </div>`;
+    
+    // Thêm nút xem biểu đồ nếu có ít nhất 1 thông số
+    const availableParams = [];
+    if (hasWaterLevel) availableParams.push({ name: 'Mực nước', unit: 'm' });
+    if (hasFlowRate) availableParams.push({ name: 'Lưu lượng', unit: 'm³/h' });
+    
+    // Debug logging
+    console.log(`Station ${station.name}: hasWaterLevel=${hasWaterLevel}, hasFlowRate=${hasFlowRate}, availableParams=`, availableParams);
+    
+    if (availableParams.length > 0) {
+        const paramsJson = JSON.stringify(availableParams).replace(/"/g, '&quot;');
+        html += `
+            <div class="popup-actions">
+                <button class="chart-btn" onclick='showMultiParameterChart("${station.id}", "${station.name.replace(/"/g, '&quot;')}", ${paramsJson})'
+                    style="width: 100%; padding: 8px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
+                    font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px;
+                    transition: all 0.2s;" 
+                    onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(102,126,234,0.4)'"
+                    onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="20" x2="12" y2="10"/>
+                        <line x1="18" y1="20" x2="18" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="16"/>
+                    </svg>
+                    <span>Xem biểu đồ</span>
+                </button>
+            </div>`;
+    }
+    
+    html += `
         </div>
     `;
     
@@ -481,9 +533,25 @@ function updateStats(stations) {
     const onlineStations = stations.filter(s => !isStationOffline(s));
     const offlineStations = stations.filter(s => isStationOffline(s));
     
-    document.getElementById('online-count').textContent = onlineStations.length;
-    document.getElementById('offline-count').textContent = offlineStations.length;
-    document.getElementById('total-count').textContent = stations.length;
+    // Update station group stats
+    const mqttStations = stations.filter(s => s.type === 'MQTT');
+    const tvaStations = stations.filter(s => s.type === 'TVA');
+    const scadaStations = stations.filter(s => s.type === 'SCADA');
+    
+    // Calculate online/offline for each group
+    const mqttOnline = mqttStations.filter(s => !isStationOffline(s)).length;
+    const tvaOnline = tvaStations.filter(s => !isStationOffline(s)).length;
+    const scadaOnline = scadaStations.filter(s => !isStationOffline(s)).length;
+    
+    const totalStationsEl = document.getElementById('total-stations');
+    const mqttStatusEl = document.getElementById('mqtt-status');
+    const tvaStatusEl = document.getElementById('tva-status');
+    const scadaStatusEl = document.getElementById('scada-status');
+    
+    if (totalStationsEl) totalStationsEl.textContent = stations.length;
+    if (mqttStatusEl) mqttStatusEl.textContent = `${mqttOnline}/${mqttStations.length}`;
+    if (tvaStatusEl) tvaStatusEl.textContent = `${tvaOnline}/${tvaStations.length}`;
+    if (scadaStatusEl) scadaStatusEl.textContent = `${scadaOnline}/${scadaStations.length}`;
     
     // Populate station checkbox list
     populateStationCheckboxList(stations);
@@ -493,69 +561,95 @@ function updateStats(stations) {
  * Populate danh sách checkbox trạm trong sidebar
  */
 function populateStationCheckboxList(stations) {
-    const listContainer = document.getElementById('station-checkbox-list');
-    if (!listContainer) return;
+    // Populate both map dropdown and sidebar dropdown
+    const containers = [
+        document.getElementById('station-checkbox-list'),
+        document.getElementById('station-checkbox-list-sidebar')
+    ];
     
-    listContainer.innerHTML = '';
-    
-    stations.forEach(station => {
-        const label = document.createElement('label');
-        label.className = 'checkbox-item';
+    containers.forEach(listContainer => {
+        if (!listContainer) return;
         
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'station-checkbox';
-        checkbox.value = station.id;
-        checkbox.dataset.stationId = station.id;
+        listContainer.innerHTML = '';
         
-        const iconColor = station.type === 'TVA' ? 'tva' : 'mqtt';
-        const span = document.createElement('span');
-        span.innerHTML = `<span class="filter-dot ${iconColor}"></span> ${station.name}`;
-        
-        label.appendChild(checkbox);
-        label.appendChild(span);
-        listContainer.appendChild(label);
-        
-        // Event listener cho checkbox
-        checkbox.addEventListener('change', (e) => {
-            handleStationCheckboxChange(station.id, e.target.checked);
-            updateStationAllCheckbox();
-            updateStationDropdownDisplay();
+        stations.forEach(station => {
+            const label = document.createElement('label');
+            label.className = 'checkbox-item';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'station-checkbox';
+            checkbox.value = station.id;
+            checkbox.dataset.stationId = station.id;
+            
+            let iconColor = 'mqtt';
+            if (station.type === 'TVA') iconColor = 'tva';
+            else if (station.type === 'SCADA') iconColor = 'scada';
+            
+            const span = document.createElement('span');
+            span.innerHTML = `<span class="filter-dot ${iconColor}"></span> ${station.name}`;
+            
+            label.appendChild(checkbox);
+            label.appendChild(span);
+            listContainer.appendChild(label);
+            
+            // Event listener cho checkbox
+            checkbox.addEventListener('change', (e) => {
+                handleStationCheckboxChange(station.id, e.target.checked);
+                updateStationAllCheckbox();
+                updateStationDropdownDisplay();
+            });
         });
     });
     
-    // Setup event listener cho checkbox "Tất cả"
-    const stationAllCheckbox = document.getElementById('station-all-checkbox');
-    if (stationAllCheckbox) {
-        stationAllCheckbox.addEventListener('change', (e) => {
-            handleStationAllCheckboxChange(e.target.checked);
-        });
-    }
+    // Setup event listener cho checkbox "Tất cả" (both locations)
+    const checkboxes = [
+        document.getElementById('station-all-checkbox'),
+        document.getElementById('station-all-checkbox-sidebar')
+    ];
+    
+    checkboxes.forEach(stationAllCheckbox => {
+        if (stationAllCheckbox) {
+            // Remove old listeners
+            const newCheckbox = stationAllCheckbox.cloneNode(true);
+            stationAllCheckbox.parentNode.replaceChild(newCheckbox, stationAllCheckbox);
+            
+            newCheckbox.addEventListener('change', (e) => {
+                handleStationAllCheckboxChange(e.target.checked);
+            });
+        }
+    });
     
     updateStationDropdownDisplay();
 }
 
 /**
- * Cập nhật text hiển thị của dropdown
+ * Cập nhật text hiển thị của dropdown (both map and sidebar)
  */
 function updateStationDropdownDisplay() {
-    const displayText = document.querySelector('#station-display .selected-text');
-    if (!displayText) return;
+    const displayTexts = [
+        document.querySelector('#station-display .selected-text'),
+        document.querySelector('#station-display-sidebar .selected-text')
+    ];
     
-    const checkboxes = document.querySelectorAll('.station-checkbox:checked');
-    const count = checkboxes.length;
-    const totalStations = document.querySelectorAll('.station-checkbox').length;
-    
-    if (count === 0) {
-        displayText.textContent = 'Chọn trạm...';
-    } else if (count === totalStations) {
-        displayText.textContent = 'Tất cả trạm';
-    } else if (count === 1) {
-        const stationName = checkboxes[0].parentElement.querySelector('span:last-child').textContent.trim();
-        displayText.textContent = stationName;
-    } else {
-        displayText.textContent = `Đã chọn ${count} trạm`;
-    }
+    displayTexts.forEach(displayText => {
+        if (!displayText) return;
+        
+        const checkboxes = document.querySelectorAll('.station-checkbox:checked');
+        const count = checkboxes.length;
+        const totalStations = document.querySelectorAll('.station-checkbox').length;
+        
+        if (count === 0) {
+            displayText.textContent = 'Chọn trạm...';
+        } else if (count === totalStations) {
+            displayText.textContent = 'Tất cả trạm';
+        } else if (count === 1) {
+            const stationName = checkboxes[0].parentElement.querySelector('span:last-child').textContent.trim();
+            displayText.textContent = stationName;
+        } else {
+            displayText.textContent = `Đã chọn ${count} trạm`;
+        }
+    });
 }
 
 /**
@@ -576,17 +670,23 @@ function handleStationAllCheckboxChange(isChecked) {
 }
 
 /**
- * Cập nhật trạng thái checkbox "Tất cả" dựa trên các checkbox trạm
+ * Cập nhật trạng thái checkbox "Tất cả" dựa trên các checkbox trạm (both locations)
  */
 function updateStationAllCheckbox() {
-    const stationAllCheckbox = document.getElementById('station-all-checkbox');
-    if (!stationAllCheckbox) return;
+    const allCheckboxes = [
+        document.getElementById('station-all-checkbox'),
+        document.getElementById('station-all-checkbox-sidebar')
+    ];
     
-    const checkboxes = document.querySelectorAll('.station-checkbox');
-    const checkedCheckboxes = document.querySelectorAll('.station-checkbox:checked');
-    
-    // Nếu tất cả đều checked thì check "Tất cả", ngược lại thì uncheck
-    stationAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedCheckboxes.length;
+    allCheckboxes.forEach(stationAllCheckbox => {
+        if (!stationAllCheckbox) return;
+        
+        const checkboxes = document.querySelectorAll('.station-checkbox');
+        const checkedCheckboxes = document.querySelectorAll('.station-checkbox:checked');
+        
+        // Nếu tất cả đều checked thì check "Tất cả", ngược lại thì uncheck
+        stationAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedCheckboxes.length;
+    });
 }
 
 /**
@@ -791,3 +891,566 @@ function updateCurrentTime() {
 document.addEventListener('DOMContentLoaded', function() {
     initMap();
 });
+
+/**
+ * Helper function to format date to dd/mm/yyyy
+ */
+function formatDateToDDMMYYYY(date) {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+/**
+ * Helper function to parse dd/mm/yyyy to yyyy-mm-dd
+ */
+function parseDDMMYYYYToYYYYMMDD(dateStr) {
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return null;
+    const day = parts[0];
+    const month = parts[1];
+    const year = parts[2];
+    return `${year}-${month}-${day}`;
+}
+
+/**
+ * Global variables for chart
+ */
+let currentChart = null;
+let currentChartStationId = null;
+let currentChartStationName = null;
+let currentChartParameter = null;
+let currentChartUnit = null;
+let currentAvailableParameters = [];
+
+/**
+ * Show multi-parameter chart modal
+ */
+function showMultiParameterChart(stationId, stationName, availableParams) {
+    currentChartStationId = stationId;
+    currentChartStationName = stationName;
+    currentAvailableParameters = availableParams;
+    
+    const modal = document.getElementById('chart-modal');
+    const modalTitle = document.getElementById('chart-modal-title');
+    const startDateInput = document.getElementById('chart-start-date');
+    const endDateInput = document.getElementById('chart-end-date');
+    const parametersContainer = document.getElementById('chart-parameters');
+    
+    if (!modal || !modalTitle || !startDateInput || !endDateInput || !parametersContainer) {
+        console.error('Chart modal elements not found');
+        return;
+    }
+    
+    // Set modal title
+    modalTitle.textContent = `Biểu đồ dữ liệu - ${stationName}`;
+    
+    // Create parameter checkboxes
+    parametersContainer.innerHTML = '';
+    availableParams.forEach((param, index) => {
+        const checkbox = document.createElement('label');
+        checkbox.style.cssText = 'display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: #f3f4f6; border-radius: 6px; font-size: 14px;';
+        checkbox.innerHTML = `
+            <input type="checkbox" class="param-checkbox" value="${param.name}" data-unit="${param.unit}" 
+                checked 
+                style="width: 18px; height: 18px; cursor: pointer;">
+            <span>${param.name} (${param.unit})</span>
+        `;
+        parametersContainer.appendChild(checkbox);
+    });
+    
+    // Set default dates (last 7 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    
+    endDateInput.value = formatDateToDDMMYYYY(endDate);
+    startDateInput.value = formatDateToDDMMYYYY(startDate);
+    
+    // Show modal
+    modal.style.display = 'block';
+    
+    // Initialize Flatpickr for date inputs
+    if (typeof flatpickr !== 'undefined') {
+        flatpickr(startDateInput, {
+            dateFormat: 'd/m/Y',
+            defaultDate: startDateInput.value,
+            allowInput: true,
+            locale: {
+                firstDayOfWeek: 1
+            }
+        });
+        
+        flatpickr(endDateInput, {
+            dateFormat: 'd/m/Y',
+            defaultDate: endDateInput.value,
+            allowInput: true,
+            locale: {
+                firstDayOfWeek: 1
+            }
+        });
+    }
+    
+    // Auto-load chart with default dates
+    setTimeout(() => loadChartData(), 100);
+}
+
+/**
+ * Show parameter chart modal (water level, flow rate, etc.) - backward compatibility
+ */
+function showParameterChart(stationId, stationName, parameterName, unit) {
+    showMultiParameterChart(stationId, stationName, [{ name: parameterName, unit: unit }]);
+}
+
+// Backward compatibility - keep old function name
+function showWaterLevelChart(stationId, stationName) {
+    showParameterChart(stationId, stationName, 'Mực nước', 'm');
+}
+
+/**
+ * Load chart data from API
+ */
+async function loadChartData() {
+    const startDateInput = document.getElementById('chart-start-date');
+    const endDateInput = document.getElementById('chart-end-date');
+    const chartLoading = document.getElementById('chart-loading');
+    const chartError = document.getElementById('chart-error');
+    const chartContainer = document.getElementById('chart-container');
+    
+    if (!startDateInput || !endDateInput) return;
+    
+    const startDateStr = startDateInput.value;
+    const endDateStr = endDateInput.value;
+    
+    if (!startDateStr || !endDateStr) {
+        chartError.textContent = 'Vui lòng chọn khoảng thời gian';
+        return;
+    }
+    
+    // Validate format dd/mm/yyyy
+    const datePattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    if (!datePattern.test(startDateStr) || !datePattern.test(endDateStr)) {
+        chartError.textContent = 'Định dạng ngày không đúng. Vui lòng nhập dd/mm/yyyy';
+        return;
+    }
+    
+    // Parse dates from dd/mm/yyyy to yyyy-mm-dd
+    const startDate = parseDDMMYYYYToYYYYMMDD(startDateStr);
+    const endDate = parseDDMMYYYYToYYYYMMDD(endDateStr);
+    
+    // Validate dates
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    
+    if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+        chartError.textContent = 'Ngày không hợp lệ';
+        return;
+    }
+    
+    if (startDateObj > endDateObj) {
+        chartError.textContent = 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc';
+        return;
+    }
+    
+    // Get selected parameters
+    const selectedParams = [];
+    document.querySelectorAll('.param-checkbox:checked').forEach(checkbox => {
+        selectedParams.push({
+            name: checkbox.value,
+            unit: checkbox.getAttribute('data-unit')
+        });
+    });
+    
+    if (selectedParams.length === 0) {
+        chartError.textContent = 'Vui lòng chọn ít nhất 1 thông số';
+        return;
+    }
+    
+    chartError.textContent = '';
+    chartLoading.style.display = 'block';
+    chartContainer.style.display = 'none';
+    
+    try {
+        // Fetch data for all selected parameters
+        const allData = [];
+        
+        for (const param of selectedParams) {
+            const params = new URLSearchParams({
+                stations: currentChartStationId,
+                parameter: param.name,
+                startDate: startDate,
+                endDate: endDate,
+                limit: 10000
+            });
+            
+            const response = await fetch(`/api/stats?${params.toString()}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Không thể tải dữ liệu');
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Lỗi không xác định');
+            }
+            
+            if (result.data && result.data.length > 0) {
+                allData.push({
+                    parameter: param.name,
+                    unit: param.unit,
+                    data: result.data
+                });
+            }
+        }
+        
+        if (allData.length === 0) {
+            chartError.textContent = 'Không có dữ liệu trong khoảng thời gian này';
+            chartLoading.style.display = 'none';
+            return;
+        }
+        
+        // Display chart
+        displayMultiParameterChart(allData);
+        
+        chartLoading.style.display = 'none';
+        chartContainer.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Error loading chart data:', error);
+        chartError.textContent = 'Lỗi tải dữ liệu: ' + error.message;
+        chartLoading.style.display = 'none';
+    }
+}
+
+/**
+ * Process data for chart
+ */
+function processChartData(data) {
+    // Sort by timestamp
+    data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    const labels = [];
+    const values = [];
+    
+    data.forEach(record => {
+        const date = new Date(record.timestamp);
+        const label = formatDateTime(date);
+        labels.push(label);
+        values.push(record.value);
+    });
+    
+    return { labels, values };
+}
+
+/**
+ * Display multi-parameter chart using Chart.js
+ */
+function displayMultiParameterChart(allData) {
+    const canvas = document.getElementById('water-level-chart');
+    
+    if (!canvas) {
+        console.error('Chart canvas not found');
+        return;
+    }
+    
+    // Destroy existing chart if any
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Define colors for different parameters
+    const paramColors = {
+        'Mực nước': { border: 'rgb(59, 130, 246)', bg: 'rgba(59, 130, 246, 0.1)' },
+        'Lưu lượng': { border: 'rgb(6, 182, 212)', bg: 'rgba(6, 182, 212, 0.1)' },
+        'Nhiệt độ': { border: 'rgb(239, 68, 68)', bg: 'rgba(239, 68, 68, 0.1)' },
+        'Áp lực': { border: 'rgb(168, 85, 247)', bg: 'rgba(168, 85, 247, 0.1)' }
+    };
+    
+    // Collect all unique timestamps
+    const allTimestamps = new Set();
+    allData.forEach(paramData => {
+        paramData.data.forEach(record => {
+            allTimestamps.add(record.timestamp);
+        });
+    });
+    
+    // Sort timestamps
+    const sortedTimestamps = Array.from(allTimestamps).sort();
+    const labels = sortedTimestamps.map(ts => formatDateTime(new Date(ts)));
+    
+    // Create datasets
+    const datasets = allData.map(paramData => {
+        const color = paramColors[paramData.parameter] || { 
+            border: 'rgb(107, 114, 128)', 
+            bg: 'rgba(107, 114, 128, 0.1)' 
+        };
+        
+        // Create data array aligned with timestamps
+        const dataValues = sortedTimestamps.map(ts => {
+            const record = paramData.data.find(r => r.timestamp === ts);
+            return record ? record.value : null;
+        });
+        
+        return {
+            label: `${paramData.parameter} (${paramData.unit})`,
+            data: dataValues,
+            borderColor: color.border,
+            backgroundColor: color.bg,
+            borderWidth: 2,
+            tension: 0.4,
+            fill: false,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            pointBackgroundColor: color.border,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            spanGaps: true
+        };
+    });
+    
+    currentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 12
+                        },
+                        usePointStyle: true,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 13,
+                        family: 'Inter, sans-serif'
+                    },
+                    bodyFont: {
+                        size: 12,
+                        family: 'Inter, sans-serif'
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 11
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 10
+                        },
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Display chart using Chart.js - single parameter (backward compatibility)
+ */
+function displayChart(chartData) {
+    const canvas = document.getElementById('water-level-chart');
+    
+    if (!canvas) {
+        console.error('Chart canvas not found');
+        return;
+    }
+    
+    // Destroy existing chart if any
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Chọn màu dựa trên loại thông số
+    let borderColor = 'rgb(59, 130, 246)'; // Màu xanh dương mặc định
+    let backgroundColor = 'rgba(59, 130, 246, 0.1)';
+    
+    if (currentChartParameter && currentChartParameter.toLowerCase().includes('lưu lượng')) {
+        borderColor = 'rgb(6, 182, 212)'; // Màu cyan cho lưu lượng
+        backgroundColor = 'rgba(6, 182, 212, 0.1)';
+    } else if (currentChartParameter && currentChartParameter.toLowerCase().includes('nhiệt')) {
+        borderColor = 'rgb(239, 68, 68)'; // Màu đỏ cho nhiệt độ
+        backgroundColor = 'rgba(239, 68, 68, 0.1)';
+    }
+    
+    currentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: `${currentChartParameter} (${currentChartUnit})`,
+                data: chartData.values,
+                borderColor: borderColor,
+                backgroundColor: backgroundColor,
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: borderColor,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 13,
+                        family: 'Inter, sans-serif'
+                    },
+                    bodyFont: {
+                        size: 12,
+                        family: 'Inter, sans-serif'
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            return `${currentChartParameter}: ${context.parsed.y} ${currentChartUnit}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 11
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    title: {
+                        display: true,
+                        text: `${currentChartParameter} (${currentChartUnit})`,
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 10
+                        },
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Initialize chart modal event listeners
+(function() {
+    const initChartModal = () => {
+        const chartModal = document.getElementById('chart-modal');
+        const closeChartModal = document.getElementById('close-chart-modal');
+        const loadChartBtn = document.getElementById('load-chart-btn');
+        
+        if (closeChartModal) {
+            closeChartModal.addEventListener('click', () => {
+                if (chartModal) {
+                    chartModal.style.display = 'none';
+                    if (currentChart) {
+                        currentChart.destroy();
+                        currentChart = null;
+                    }
+                }
+            });
+        }
+        
+        if (chartModal) {
+            chartModal.addEventListener('click', (e) => {
+                if (e.target === chartModal) {
+                    chartModal.style.display = 'none';
+                    if (currentChart) {
+                        currentChart.destroy();
+                        currentChart = null;
+                    }
+                }
+            });
+        }
+        
+        if (loadChartBtn) {
+            loadChartBtn.addEventListener('click', loadChartData);
+        }
+    };
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initChartModal);
+    } else {
+        initChartModal();
+    }
+})();
+
+// Make functions available globally
+window.showWaterLevelChart = showWaterLevelChart;
+window.showParameterChart = showParameterChart;
+window.showMultiParameterChart = showMultiParameterChart;

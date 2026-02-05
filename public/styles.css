@@ -396,6 +396,83 @@ body.page-transitioning {
     opacity: 0.9;
 }
 
+/* Station Stats */
+.station-stats {
+    padding: 16px;
+    background: #ffffff;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border-left: 4px solid #cbd5e1;
+    transition: all 0.2s;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-item:hover {
+    background: #f1f5f9;
+    transform: translateX(2px);
+}
+
+.stat-item.total {
+    border-left-color: #0066cc;
+    background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+}
+
+.stat-item.mqtt {
+    border-left-color: #10b981;
+}
+
+.stat-item.tva {
+    border-left-color: #f59e0b;
+}
+
+.stat-item.scada {
+    border-left-color: #8b5cf6;
+}
+
+.stat-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+}
+
+.stat-status {
+    font-size: 16px;
+    font-weight: 700;
+    color: #10b981;
+    letter-spacing: 0.5px;
+}
+
+.stat-item.total .stat-label {
+    font-weight: 700;
+    color: #0066cc;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    min-width: 40px;
+    text-align: right;
+}
+
+.stat-item.total .stat-value {
+    font-size: 24px;
+    color: #0066cc;
+}
+
 .filter-content {
     padding: 16px;
     position: relative;
@@ -586,6 +663,10 @@ body.page-transitioning {
 
 .filter-dot.mqtt {
     background: #fbbf24;
+}
+
+.filter-dot.scada {
+    background: #8b5cf6;
 }
 
 /* Status Filter Dropdown */
@@ -878,6 +959,60 @@ body.page-transitioning {
     margin: 0;
 }
 
+/* Map Controls */
+.map-controls {
+    position: absolute;
+    top: 80px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.station-filter-control {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    min-width: 250px;
+}
+
+.station-filter-control .multi-select-wrapper {
+    width: 100%;
+}
+
+.station-filter-control .multi-select-display {
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.station-filter-control .multi-select-display:hover {
+    background: #f8fafc;
+}
+
+.station-filter-control .multi-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 400px;
+    overflow-y: auto;
+    display: none;
+    margin-top: 4px;
+    z-index: 1001;
+}
+
+.station-filter-control .multi-select-dropdown.show {
+    display: block;
+}
+
 /* Map */
 #map {
     width: 100%;
@@ -1044,6 +1179,26 @@ body.page-transitioning {
     font-size: 12px;
     text-align: center;
     padding: 8px;
+}
+
+/* Popup Actions */
+.popup-actions {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.chart-btn {
+    transition: all 0.2s ease;
+}
+
+.chart-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.chart-btn:active {
+    transform: translateY(0);
 }
 
 /* Stats Panel */
@@ -1678,12 +1833,13 @@ body.page-transitioning {
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
     z-index: 2000;
-    align-items: center;
-    justify-content: center;
 }
 
+.modal[style*="display: block"],
 .modal.show {
-    display: flex;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
 }
 
 .modal-content {

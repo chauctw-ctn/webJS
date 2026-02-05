@@ -375,6 +375,12 @@ function getStatsData(options) {
                 if (parameterName.toLowerCase() === 'ph' || parameterName.toLowerCase() === 'độ ph') {
                     console.log('  🔬 pH filter: matching both "ph" and "độ ph"');
                     tvaQuery += ` AND (parameter_name LIKE '%pH%' OR parameter_name LIKE '%ph%')`;
+                } else if (parameterName.toLowerCase().includes('mực nước') || parameterName.toLowerCase().includes('muc nuoc')) {
+                    console.log('  💧 Water level filter: matching "Mực Nước" and "Mực nước"');
+                    tvaQuery += ` AND (LOWER(parameter_name) LIKE '%mực nước%' OR LOWER(parameter_name) LIKE '%muc nuoc%')`;
+                } else if (parameterName.toLowerCase().includes('lưu lượng')) {
+                    console.log('  💦 Flow rate filter: matching "Lưu lượng" but excluding "Tổng Lưu Lượng"');
+                    tvaQuery += ` AND LOWER(parameter_name) LIKE '%lưu lượng%' AND LOWER(parameter_name) NOT LIKE '%tổng%'`;
                 } else {
                     console.log(`  🔬 Parameter filter: ${parameterName}`);
                     tvaQuery += ` AND LOWER(parameter_name) = LOWER(?)`;
@@ -411,6 +417,10 @@ function getStatsData(options) {
                 // Special handling for pH: match both 'pH' and 'Độ pH'
                 if (parameterName.toLowerCase() === 'ph' || parameterName.toLowerCase() === 'độ ph') {
                     mqttQuery += ` AND (parameter_name LIKE '%pH%' OR parameter_name LIKE '%ph%')`;
+                } else if (parameterName.toLowerCase().includes('mực nước') || parameterName.toLowerCase().includes('muc nuoc')) {
+                    mqttQuery += ` AND (LOWER(parameter_name) LIKE '%mực nước%' OR LOWER(parameter_name) LIKE '%muc nuoc%')`;
+                } else if (parameterName.toLowerCase().includes('lưu lượng')) {
+                    mqttQuery += ` AND LOWER(parameter_name) LIKE '%lưu lượng%' AND LOWER(parameter_name) NOT LIKE '%tổng%'`;
                 } else {
                     mqttQuery += ` AND LOWER(parameter_name) = LOWER(?)`;
                     mqttParams.push(parameterName);
@@ -447,6 +457,12 @@ function getStatsData(options) {
                 if (parameterName.toLowerCase() === 'ph' || parameterName.toLowerCase() === 'độ ph') {
                     console.log('  🔬 pH filter: matching both "ph" and "độ ph"');
                     scadaQuery += ` AND (parameter_name LIKE '%pH%' OR parameter_name LIKE '%ph%')`;
+                } else if (parameterName.toLowerCase().includes('mực nước') || parameterName.toLowerCase().includes('muc nuoc')) {
+                    console.log('  💧 Water level filter: matching "Mực Nước" and "Mực nước"');
+                    scadaQuery += ` AND (LOWER(parameter_name) LIKE '%mực nước%' OR LOWER(parameter_name) LIKE '%muc nuoc%')`;
+                } else if (parameterName.toLowerCase().includes('lưu lượng')) {
+                    console.log('  💦 Flow rate filter: matching "Lưu lượng" but excluding "Tổng Lưu Lượng"');
+                    scadaQuery += ` AND LOWER(parameter_name) LIKE '%lưu lượng%' AND LOWER(parameter_name) NOT LIKE '%tổng%'`;
                 } else {
                     console.log(`  🔬 Parameter filter: ${parameterName}`);
                     scadaQuery += ` AND LOWER(parameter_name) = LOWER(?)`;
@@ -707,15 +723,70 @@ function checkStationsValueChanges(timeoutMinutes = 60) {
                     }
                 });
                 
-                // Log kết quả để debug
-                console.log(`📈 Station status summary:`);
-                Object.keys(results).forEach(stationName => {
-                    const station = results[stationName];
-                    const changedParams = station.parameters.filter(p => p.hasChange);
-                    console.log(`   ${stationName}: ${station.hasChange ? '✅ ONLINE' : '❌ OFFLINE'} (${changedParams.length}/${station.parameters.length} params changed)`);
-                });
+                // Kiểm tra SCADA data
+                const scadaQuery = `
+                    SELECT 
+                        station_name,
+                        parameter_name,
+                        COUNT(DISTINCT value) as distinct_values,
+                        MAX(timestamp) as last_update,
+                        COUNT(*) as total_records
+                    FROM scada_data
+                    WHERE timestamp >= ?
+                        AND parameter_name NOT IN ('Tổng Lưu Lượng')
+                    GROUP BY station_name, parameter_name
+                `;
                 
-                resolve(results);
+                db.all(scadaQuery, [cutoffTime], (err, scadaRows) => {
+                    if (err) {
+                        console.error('❌ Error checking SCADA value changes:', err);
+                        reject(err);
+                        return;
+                    }
+                    
+                    console.log(`📊 SCADA query returned ${scadaRows.length} parameter groups`);
+                    
+                    // Phân tích kết quả SCADA
+                    scadaRows.forEach(row => {
+                        if (!results[row.station_name]) {
+                            results[row.station_name] = {
+                                hasChange: false,
+                                lastUpdate: row.last_update,
+                                parameters: []
+                            };
+                        }
+                        
+                        // Kiểm tra xem parameter này có thay đổi không
+                        const paramHasChange = row.distinct_values > 1;
+                        
+                        results[row.station_name].parameters.push({
+                            name: row.parameter_name,
+                            distinctValues: row.distinct_values,
+                            totalRecords: row.total_records,
+                            hasChange: paramHasChange
+                        });
+                        
+                        // Nếu có ít nhất 1 parameter thay đổi -> station có thay đổi
+                        if (paramHasChange) {
+                            results[row.station_name].hasChange = true;
+                        }
+                        
+                        // Update last_update nếu mới hơn
+                        if (new Date(row.last_update) > new Date(results[row.station_name].lastUpdate)) {
+                            results[row.station_name].lastUpdate = row.last_update;
+                        }
+                    });
+                    
+                    // Log kết quả để debug
+                    console.log(`📈 Station status summary:`);
+                    Object.keys(results).forEach(stationName => {
+                        const station = results[stationName];
+                        const changedParams = station.parameters.filter(p => p.hasChange);
+                        console.log(`   ${stationName}: ${station.hasChange ? '✅ ONLINE' : '❌ OFFLINE'} (${changedParams.length}/${station.parameters.length} params changed)`);
+                    });
+                    
+                    resolve(results);
+                });
             });
         });
     });
@@ -769,7 +840,30 @@ function getStationLastUpdates() {
                     }
                 });
                 
-                resolve(lastUpdates);
+                // Get last update from SCADA data
+                const scadaQuery = `
+                    SELECT station_name, MAX(timestamp) as last_update
+                    FROM scada_data
+                    GROUP BY station_name
+                `;
+                
+                db.all(scadaQuery, [], (err, scadaRows) => {
+                    if (err) {
+                        console.error('Error getting SCADA last updates:', err);
+                        reject(err);
+                        return;
+                    }
+                    
+                    // Store SCADA updates (merge with TVA and MQTT)
+                    scadaRows.forEach(row => {
+                        if (!lastUpdates[row.station_name] || 
+                            new Date(row.last_update) > new Date(lastUpdates[row.station_name])) {
+                            lastUpdates[row.station_name] = row.last_update;
+                        }
+                    });
+                    
+                    resolve(lastUpdates);
+                });
             });
         });
     });

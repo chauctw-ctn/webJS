@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { TVA_STATION_COORDINATES } = require('./tva-coordinates');
 const { MQTT_STATION_COORDINATES } = require('./mqtt-coordinates');
+const { SCADA_STATION_COORDINATES } = require('./scada-coordinates');
 const { connectMQTT, getConnectionStatus } = require('./mqtt_client');
 const { crawl: crawlTVAData } = require('./getKeyTVA');
 const { crawlScadaTVA, getStationDetail } = require('./scada-tva-crawler');
@@ -441,6 +442,67 @@ app.get('/api/stations', async (req, res) => {
                     });
                 }
             });
+        }
+        
+        // Đọc dữ liệu SCADA (chất lượng nước) từ database
+        const scadaStationsInDB = Object.keys(dbStationsData).filter(name => 
+            dbStationsData[name].type === 'SCADA'
+        );
+        
+        if (scadaStationsInDB.length > 0) {
+            console.log(`📊 Loading ${scadaStationsInDB.length} SCADA stations from database`);
+            scadaStationsInDB.forEach(stationName => {
+                const dbStation = dbStationsData[stationName];
+                const status = stationStatus[stationName] || { hasChange: false, lastUpdate: null };
+                
+                // Get coordinates from SCADA_STATION_COORDINATES
+                const coords = SCADA_STATION_COORDINATES[stationName];
+                
+                if (coords) {
+                    allStations.push({
+                        id: `scada_${stationName.replace(/\s+/g, '_')}`,
+                        name: stationName,
+                        type: 'SCADA',
+                        lat: coords.lat,
+                        lng: coords.lng,
+                        updateTime: dbStation.updateTime,
+                        lastUpdateInDB: dbStation.timestamp,
+                        hasValueChange: status.hasChange,
+                        data: dbStation.data,
+                        timestamp: dbStation.timestamp
+                    });
+                    console.log(`   ✅ SCADA station added: ${stationName} (${coords.lat}, ${coords.lng})`);
+                } else {
+                    console.warn(`   ⚠️ No coordinates found for SCADA station: ${stationName}`);
+                }
+            });
+        } else if (fs.existsSync('data_scada_tva.json')) {
+            // Fallback: Đọc từ file JSON
+            console.log('⚠️ No SCADA data in DB, loading from JSON file');
+            const scadaData = JSON.parse(fs.readFileSync('data_scada_tva.json', 'utf8'));
+            
+            if (scadaData.stationsGrouped) {
+                Object.keys(scadaData.stationsGrouped).forEach(stationName => {
+                    const station = scadaData.stationsGrouped[stationName];
+                    const coords = SCADA_STATION_COORDINATES[stationName];
+                    const status = stationStatus[stationName] || { hasChange: false, lastUpdate: null };
+                    
+                    if (coords) {
+                        allStations.push({
+                            id: `scada_${stationName.replace(/\s+/g, '_')}`,
+                            name: stationName,
+                            type: 'SCADA',
+                            lat: coords.lat,
+                            lng: coords.lng,
+                            updateTime: station.updateTime,
+                            lastUpdateInDB: status.lastUpdate,
+                            hasValueChange: status.hasChange,
+                            data: station.data,
+                            timestamp: scadaData.timestamp
+                        });
+                    }
+                });
+            }
         }
         
         res.json({
