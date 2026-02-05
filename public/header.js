@@ -5,6 +5,7 @@ function createHeader(pageTitle = '') {
         <div class="header-content">
             <button class="menu-btn" id="menu-btn">☰</button>
             <div class="logo-section">
+                <img src="http://14.225.252.85/assets/images/logo.png" alt="Logo" class="header-logo">
                 <div class="company-info">
                     <h1 class="company-name">CÔNG TY CỔ PHẦN CẤP NƯỚC CÀ MAU</h1>
                     <p class="company-address">204 Quang Trung, P. Tân Thành, Cà Mau</p>
@@ -13,7 +14,7 @@ function createHeader(pageTitle = '') {
             </div>
             <nav class="main-nav">
                 <a href="index.html" class="nav-link">🏠 Trang chủ</a>
-                <a href="scada.html" class="nav-link">CHẤT LƯỢNG NƯỚC</a>
+                <a href="scada.html" class="nav-link">Chất lượng nước</a>
                 <a href="stats.html" class="nav-link">📊 Thống kê</a>
             </nav>
             <div class="current-time-section">
@@ -90,6 +91,40 @@ function initializeHeader() {
     const mainContent = document.querySelector('main.container');
     const statsMain = document.querySelector('main:not(.container):not(.scada-main)'); // Stats page main
 
+    // Restore sidebar state from localStorage without transition on page load
+    if (sidebar) {
+        const savedState = localStorage.getItem('sidebarOpen');
+        const shouldOpen = savedState === 'true';
+        
+        // Disable transitions temporarily
+        sidebar.classList.add('no-transition');
+        
+        // Set initial state immediately
+        sidebar.classList.toggle('active', shouldOpen);
+        sidebar.classList.toggle('hidden', !shouldOpen);
+        
+        // Update other elements
+        if (mapElement) mapElement.classList.toggle('with-sidebar', shouldOpen);
+        if (scadaMain) scadaMain.classList.toggle('with-sidebar', shouldOpen);
+        if (mainContent) mainContent.classList.toggle('with-sidebar', shouldOpen);
+        if (statsMain) {
+            statsMain.classList.toggle('with-sidebar', shouldOpen);
+            statsMain.classList.toggle('sidebar-hidden', !shouldOpen);
+        }
+        
+        // Re-enable transitions and show page
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                sidebar.classList.remove('no-transition');
+                // Remove loading class to show page
+                document.body.classList.remove('loading');
+            }, 20);
+        });
+    } else {
+        // If no sidebar, just remove loading class
+        document.body.classList.remove('loading');
+    }
+
     function requestMapResize() {
         // Leaflet map instance is created in map.js; keep this resilient.
         const leafletMap = (typeof window !== 'undefined' && (window.map || window.leafletMap)) || null;
@@ -146,48 +181,12 @@ function initializeHeader() {
         sidebarOverlay.addEventListener('click', () => applySidebarState(false));
     }
 
-    // User menu toggle
-    const userMenuBtn = document.getElementById('user-menu-btn');
-    const userDropdown = document.getElementById('user-dropdown');
+    // User menu toggle and logout handled by auth.js
+    // No need to add listeners here
     
-    if (userMenuBtn && userDropdown) {
-        userMenuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.user-menu-container')) {
-                userDropdown.classList.remove('show');
-            }
-        });
-    }
-
-    // Logout
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('username');
-            localStorage.removeItem('role');
-            window.location.href = '/login.html';
-        });
-    }
-
-    // Display user info
-    const username = localStorage.getItem('username');
-    const role = localStorage.getItem('role');
-    const usernameDisplay = document.getElementById('username-display');
-    const dropdownUsername = document.getElementById('dropdown-username');
-    const dropdownRole = document.getElementById('dropdown-role');
-
-    if (usernameDisplay) usernameDisplay.textContent = username || '';
-    if (dropdownUsername) dropdownUsername.textContent = username || '';
-    if (dropdownRole) {
-        const roleText = role === 'admin' ? 'Quản trị viên' : 'Người dùng';
-        dropdownRole.textContent = roleText;
-    }
+    // Display user info - let auth.js handle this completely
+    // Auth.js will call updateUserUI() after authentication completes
+    // No need to do anything here as auth.js DOMContentLoaded runs and calls updateUserUI
 }
 
 // Export cho các trang khác sử dụng

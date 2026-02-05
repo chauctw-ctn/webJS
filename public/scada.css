@@ -20,13 +20,13 @@ body {
 }
 
 .scada-main {
-    margin-top: 56px;
+    margin-top: 66px;
     margin-left: 0;
     padding: 30px;
-    min-height: calc(100vh - 56px);
-    min-height: calc(100dvh - 56px);
-    height: calc(100vh - 56px);
-    height: calc(100dvh - 56px);
+    min-height: calc(100vh - 66px);
+    min-height: calc(100dvh - 66px);
+    height: calc(100vh - 66px);
+    height: calc(100dvh - 66px);
     overflow-y: auto;
     overflow-x: hidden;
     background-color: #f5f7fa;

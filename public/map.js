@@ -4,6 +4,7 @@ let markers = [];
 let allStations = [];
 let currentFilter = 'all';
 let offlineTimeoutMinutes = 60; // Default 60 minutes
+let serverTimestamp = null; // Server timestamp for consistent offline calculation
 
 function createStationIcon(station) {
     const offline = isStationOffline(station);
@@ -76,53 +77,52 @@ function saveOfflineTimeout(minutes) {
     localStorage.setItem('offlineTimeoutMinutes', minutes);
     console.log(`Offline timeout updated to ${minutes} minutes`);
     
-    // Refresh markers to apply new timeout
-    if (allStations.length > 0) {
-        displayMarkers(allStations);
-    }
+    // Reload data from server with new timeout to recalculate hasValueChange
+    loadStations();
 }
 
 /**
  * Check if station is offline (no value changes within configured time period)
- * Uses hasValueChange flag from server (based on SQL analysis)
+ * Server determines this based on:
+ * 1. Time since last data log in SQL
+ * 2. Whether there are value changes within timeout period
+ * If time > timeout AND no value changes → OFFLINE
  */
 function isStationOffline(station) {
-    // Debug: log station data
-    console.log(`🔍 Checking station: ${station.name}, hasValueChange=${station.hasValueChange}, lastUpdateInDB=${station.lastUpdateInDB}`);
-    
-    // Check if station has value changes within the timeout period
-    // hasValueChange is calculated by server based on distinct values in timeframe
+    // Server already calculated hasValueChange based on SQL data and timeout
+    // Trust the server's calculation
     if (station.hasValueChange === false) {
-        console.log(`   ❌ OFFLINE - No value changes in last ${offlineTimeoutMinutes}min`);
+        console.log(`   ❌ OFFLINE - ${station.name}: No value changes or data too old`);
         return true;
     }
     
     if (station.hasValueChange === true) {
-        console.log(`   ✅ ONLINE - Has value changes`);
+        console.log(`   ✅ ONLINE - ${station.name}: Has value changes`);
         return false;
     }
     
-    // Fallback: check if lastUpdateInDB exists
+    // Fallback: if hasValueChange is undefined, check timestamp
     const checkTime = station.lastUpdateInDB || station.updateTime;
     
     if (!checkTime) {
-        console.log(`   ❌ OFFLINE - No update time`);
+        console.log(`   ❌ OFFLINE - ${station.name}: No update time`);
         return true;
     }
     
     const updateTime = new Date(checkTime);
-    const now = new Date();
+    // Use server timestamp if available, otherwise use client time
+    const now = serverTimestamp ? new Date(serverTimestamp) : new Date();
     
     // Check if date is valid
     if (isNaN(updateTime.getTime())) {
-        console.log(`   ❌ OFFLINE - Invalid updateTime (${checkTime})`);
+        console.log(`   ❌ OFFLINE - ${station.name}: Invalid updateTime (${checkTime})`);
         return true;
     }
     
     const diffMinutes = (now - updateTime) / (1000 * 60);
     
     const status = diffMinutes > offlineTimeoutMinutes ? 'OFFLINE' : 'ONLINE';
-    console.log(`   ${status === 'OFFLINE' ? '❌' : '✅'} ${status} - Fallback check - diffMinutes=${diffMinutes.toFixed(2)}`);
+    console.log(`   ${status === 'OFFLINE' ? '❌' : '✅'} ${status} - ${station.name}: Fallback check - ${diffMinutes.toFixed(2)} min since last update`);
     
     return diffMinutes > offlineTimeoutMinutes;
 }
@@ -194,6 +194,7 @@ async function loadStations() {
         
         if (data.success) {
             allStations = data.stations;
+            serverTimestamp = data.timestamp; // Store server timestamp
             updateStats(data.stations);
             displayMarkers(data.stations);
             
@@ -223,6 +224,7 @@ async function refreshStations() {
         if (data.success) {
             // Cập nhật allStations
             allStations = data.stations;
+            serverTimestamp = data.timestamp; // Store server timestamp
             updateStats(data.stations);
             
             // Cập nhật dữ liệu + popup/icon/tooltip cho markers (kể cả popup đang đóng)
@@ -294,11 +296,20 @@ function displayMarkers(stations) {
     // Xóa markers cũ
     clearMarkers();
     
+    // Sắp xếp stations: offline trước, online sau
+    // Điều này đảm bảo offline markers được vẽ sau (lên trên) online markers
+    const sortedStations = [...stations].sort((a, b) => {
+        const aOffline = isStationOffline(a);
+        const bOffline = isStationOffline(b);
+        // Online (false) trước, Offline (true) sau để offline vẽ lên trên
+        return aOffline === bOffline ? 0 : (aOffline ? 1 : -1);
+    });
+    
     // Tạo mảng lưu tọa độ
     const bounds = [];
     
     // Tạo markers mới
-    stations.forEach(station => {
+    sortedStations.forEach(station => {
         if (!station.lat || !station.lng) return;
         
         const position = [station.lat, station.lng];
@@ -527,7 +538,7 @@ function clearMarkers() {
 }
 
 /**
- * Cập nhật thống kê
+ * Cập nhật thống kê và group counts
  */
 function updateStats(stations) {
     const onlineStations = stations.filter(s => !isStationOffline(s));
@@ -543,113 +554,97 @@ function updateStats(stations) {
     const tvaOnline = tvaStations.filter(s => !isStationOffline(s)).length;
     const scadaOnline = scadaStations.filter(s => !isStationOffline(s)).length;
     
-    const totalStationsEl = document.getElementById('total-stations');
-    const mqttStatusEl = document.getElementById('mqtt-status');
-    const tvaStatusEl = document.getElementById('tva-status');
-    const scadaStatusEl = document.getElementById('scada-status');
+    // Update group counts in filter labels
+    const allCountEl = document.getElementById('all-count');
+    const tvaCountEl = document.getElementById('tva-count');
+    const mqttCountEl = document.getElementById('mqtt-count');
+    const scadaCountEl = document.getElementById('scada-count');
     
-    if (totalStationsEl) totalStationsEl.textContent = stations.length;
-    if (mqttStatusEl) mqttStatusEl.textContent = `${mqttOnline}/${mqttStations.length}`;
-    if (tvaStatusEl) tvaStatusEl.textContent = `${tvaOnline}/${tvaStations.length}`;
-    if (scadaStatusEl) scadaStatusEl.textContent = `${scadaOnline}/${scadaStations.length}`;
+    if (allCountEl) allCountEl.textContent = `(${onlineStations.length}/${stations.length})`;
+    if (tvaCountEl) tvaCountEl.textContent = `(${tvaOnline}/${tvaStations.length})`;
+    if (mqttCountEl) mqttCountEl.textContent = `(${mqttOnline}/${mqttStations.length})`;
+    if (scadaCountEl) scadaCountEl.textContent = `(${scadaOnline}/${scadaStations.length})`;
     
     // Populate station checkbox list
     populateStationCheckboxList(stations);
 }
 
 /**
- * Populate danh sách checkbox trạm trong sidebar
+ * Populate danh sách checkbox trạm trong map dropdown
  */
 function populateStationCheckboxList(stations) {
-    // Populate both map dropdown and sidebar dropdown
-    const containers = [
-        document.getElementById('station-checkbox-list'),
-        document.getElementById('station-checkbox-list-sidebar')
-    ];
+    // Populate map dropdown only
+    const listContainer = document.getElementById('station-checkbox-list');
+    if (!listContainer) return;
     
-    containers.forEach(listContainer => {
-        if (!listContainer) return;
+    listContainer.innerHTML = '';
+    
+    stations.forEach(station => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-item';
         
-        listContainer.innerHTML = '';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'station-checkbox';
+        checkbox.value = station.id;
+        checkbox.dataset.stationId = station.id;
         
-        stations.forEach(station => {
-            const label = document.createElement('label');
-            label.className = 'checkbox-item';
-            
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'station-checkbox';
-            checkbox.value = station.id;
-            checkbox.dataset.stationId = station.id;
-            
-            let iconColor = 'mqtt';
-            if (station.type === 'TVA') iconColor = 'tva';
-            else if (station.type === 'SCADA') iconColor = 'scada';
-            
-            const span = document.createElement('span');
-            span.innerHTML = `<span class="filter-dot ${iconColor}"></span> ${station.name}`;
-            
-            label.appendChild(checkbox);
-            label.appendChild(span);
-            listContainer.appendChild(label);
-            
-            // Event listener cho checkbox
-            checkbox.addEventListener('change', (e) => {
-                handleStationCheckboxChange(station.id, e.target.checked);
-                updateStationAllCheckbox();
-                updateStationDropdownDisplay();
-            });
+        let iconColor = 'mqtt';
+        if (station.type === 'TVA') iconColor = 'tva';
+        else if (station.type === 'SCADA') iconColor = 'scada';
+        
+        const span = document.createElement('span');
+        span.innerHTML = `<span class="filter-dot ${iconColor}"></span> ${station.name}`;
+        
+        label.appendChild(checkbox);
+        label.appendChild(span);
+        listContainer.appendChild(label);
+        
+        // Event listener cho checkbox
+        checkbox.addEventListener('change', (e) => {
+            handleStationCheckboxChange(station.id, e.target.checked);
+            updateStationAllCheckbox();
+            updateStationDropdownDisplay();
         });
     });
     
-    // Setup event listener cho checkbox "Tất cả" (both locations)
-    const checkboxes = [
-        document.getElementById('station-all-checkbox'),
-        document.getElementById('station-all-checkbox-sidebar')
-    ];
+    // Setup event listener cho checkbox "Tất cả"
+    const stationAllCheckbox = document.getElementById('station-all-checkbox');
     
-    checkboxes.forEach(stationAllCheckbox => {
-        if (stationAllCheckbox) {
-            // Remove old listeners
-            const newCheckbox = stationAllCheckbox.cloneNode(true);
-            stationAllCheckbox.parentNode.replaceChild(newCheckbox, stationAllCheckbox);
-            
-            newCheckbox.addEventListener('change', (e) => {
-                handleStationAllCheckboxChange(e.target.checked);
-            });
-        }
-    });
+    if (stationAllCheckbox) {
+        // Remove old listeners
+        const newCheckbox = stationAllCheckbox.cloneNode(true);
+        stationAllCheckbox.parentNode.replaceChild(newCheckbox, stationAllCheckbox);
+        
+        newCheckbox.addEventListener('change', (e) => {
+            handleStationAllCheckboxChange(e.target.checked);
+        });
+    }
     
     updateStationDropdownDisplay();
 }
 
 /**
- * Cập nhật text hiển thị của dropdown (both map and sidebar)
+ * Cập nhật text hiển thị của dropdown trên map
  */
 function updateStationDropdownDisplay() {
-    const displayTexts = [
-        document.querySelector('#station-display .selected-text'),
-        document.querySelector('#station-display-sidebar .selected-text')
-    ];
+    const displayText = document.querySelector('#station-display .selected-text');
+    if (!displayText) return;
     
-    displayTexts.forEach(displayText => {
-        if (!displayText) return;
-        
-        const checkboxes = document.querySelectorAll('.station-checkbox:checked');
-        const count = checkboxes.length;
-        const totalStations = document.querySelectorAll('.station-checkbox').length;
-        
-        if (count === 0) {
-            displayText.textContent = 'Chọn trạm...';
-        } else if (count === totalStations) {
-            displayText.textContent = 'Tất cả trạm';
-        } else if (count === 1) {
-            const stationName = checkboxes[0].parentElement.querySelector('span:last-child').textContent.trim();
-            displayText.textContent = stationName;
-        } else {
-            displayText.textContent = `Đã chọn ${count} trạm`;
-        }
-    });
+    const checkboxes = document.querySelectorAll('.station-checkbox:checked');
+    const count = checkboxes.length;
+    const totalStations = document.querySelectorAll('.station-checkbox').length;
+    
+    if (count === 0) {
+        displayText.textContent = 'Chọn trạm...';
+    } else if (count === totalStations) {
+        displayText.textContent = 'Tất cả trạm';
+    } else if (count === 1) {
+        const stationName = checkboxes[0].parentElement.querySelector('span:last-child').textContent.trim();
+        displayText.textContent = stationName;
+    } else {
+        displayText.textContent = `Đã chọn ${count} trạm`;
+    }
 }
 
 /**
@@ -670,23 +665,17 @@ function handleStationAllCheckboxChange(isChecked) {
 }
 
 /**
- * Cập nhật trạng thái checkbox "Tất cả" dựa trên các checkbox trạm (both locations)
+ * Cập nhật trạng thái checkbox "Tất cả" dựa trên các checkbox trạm
  */
 function updateStationAllCheckbox() {
-    const allCheckboxes = [
-        document.getElementById('station-all-checkbox'),
-        document.getElementById('station-all-checkbox-sidebar')
-    ];
+    const stationAllCheckbox = document.getElementById('station-all-checkbox');
+    if (!stationAllCheckbox) return;
     
-    allCheckboxes.forEach(stationAllCheckbox => {
-        if (!stationAllCheckbox) return;
-        
-        const checkboxes = document.querySelectorAll('.station-checkbox');
-        const checkedCheckboxes = document.querySelectorAll('.station-checkbox:checked');
-        
-        // Nếu tất cả đều checked thì check "Tất cả", ngược lại thì uncheck
-        stationAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedCheckboxes.length;
-    });
+    const checkboxes = document.querySelectorAll('.station-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.station-checkbox:checked');
+    
+    // Nếu tất cả đều checked thì check "Tất cả", ngược lại thì uncheck
+    stationAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedCheckboxes.length;
 }
 
 /**
@@ -785,12 +774,14 @@ function setupEventListeners() {
         ro.observe(mapElement);
     }
     
-    // Dashboard button - Already on dashboard, just ensure it's active
+    // Dashboard button - Toggle filters visibility
     const dashboardBtn = document.getElementById('dashboard-btn');
-    if (dashboardBtn) {
-        dashboardBtn.addEventListener('click', () => {
-            // Already on dashboard page, do nothing or refresh
-            window.location.href = '/';
+    const dashboardContent = document.getElementById('dashboard-content');
+    if (dashboardBtn && dashboardContent) {
+        dashboardBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            dashboardBtn.classList.toggle('expanded');
+            dashboardContent.classList.toggle('active');
         });
     }
     
@@ -813,13 +804,13 @@ function setupEventListeners() {
     if (stationDisplay && stationDropdown) {
         stationDisplay.addEventListener('click', (e) => {
             e.stopPropagation();
-            stationDropdown.classList.toggle('open');
+            stationDropdown.classList.toggle('show');
         });
         
         // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
             if (!stationDropdown.contains(e.target) && !stationDisplay.contains(e.target)) {
-                stationDropdown.classList.remove('open');
+                stationDropdown.classList.remove('show');
             }
         });
     }
@@ -868,6 +859,73 @@ function setupEventListeners() {
         console.log('🔄 Tự động làm mới dữ liệu...');
         refreshStations();
     }, 30 * 1000); // 30 giây
+    
+    // Group filter checkboxes
+    setupGroupFilters();
+}
+
+/**
+ * Setup bộ lọc theo nhóm
+ */
+function setupGroupFilters() {
+    // Group filter elements
+    const filterAll = document.getElementById('filter-all');
+    const filterTva = document.getElementById('filter-tva');
+    const filterMqtt = document.getElementById('filter-mqtt');
+    const filterScada = document.getElementById('filter-scada');
+    
+    if (!filterAll || !filterTva || !filterMqtt || !filterScada) return;
+    
+    // Xử lý checkbox "Tất cả nhóm"
+    filterAll.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        filterTva.checked = isChecked;
+        filterMqtt.checked = isChecked;
+        filterScada.checked = isChecked;
+        applyGroupFilters();
+    });
+    
+    // Xử lý các checkbox nhóm riêng lẻ
+    [filterTva, filterMqtt, filterScada].forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            // Cập nhật trạng thái checkbox "Tất cả"
+            filterAll.checked = filterTva.checked && filterMqtt.checked && filterScada.checked;
+            applyGroupFilters();
+        });
+    });
+}
+
+/**
+ * Áp dụng bộ lọc theo nhóm
+ */
+function applyGroupFilters() {
+    // Group filter elements
+    const filterTva = document.getElementById('filter-tva');
+    const filterMqtt = document.getElementById('filter-mqtt');
+    const filterScada = document.getElementById('filter-scada');
+    
+    if (!filterTva || !filterMqtt || !filterScada) {
+        displayMarkers(allStations);
+        return;
+    }
+    
+    const showTva = filterTva.checked;
+    const showMqtt = filterMqtt.checked;
+    const showScada = filterScada.checked;
+    
+    // Lọc trạm theo nhóm
+    let filteredStations = allStations.filter(station => {
+        if (station.type === 'TVA' && showTva) return true;
+        if (station.type === 'MQTT' && showMqtt) return true;
+        if (station.type === 'SCADA' && showScada) return true;
+        return false;
+    });
+    
+    // Cập nhật danh sách checkbox trong map dropdown
+    populateStationCheckboxList(filteredStations);
+    
+    // Hiển thị markers
+    displayMarkers(filteredStations);
 }
 
 /**

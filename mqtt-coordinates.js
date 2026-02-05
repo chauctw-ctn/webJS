@@ -4,7 +4,6 @@ const MQTT_STATION_COORDINATES = {
     'QT1_NM2': { lat: 9.205658, lng: 105.12963 },
     'QT2_NM2': { lat: 9.203337, lng: 105.129712 },
     'QT2M': { lat: 9.179219, lng: 105.139376 },
-    'QT4': { lat: 9.178851, lng: 105.162845 },
     'QT5': { lat: 9.178642307966712, lng: 105.1542747288355 },
     'GS1_NM2': { lat: 9.205104, lng: 105.131994 },
     'GS2_NM1': { lat: 9.173416, lng: 105.209793 },
@@ -29,9 +28,7 @@ const MQTT_STATION_COORDINATES = {
     'QT1-NM2 (Quan trắc NM2)': { lat: 9.205658, lng: 105.12963 },
     'QT2 (182/GP-BTNMT)': { lat: 9.179219, lng: 105.139376 },
     'QT2-NM2 (Quan trắc NM2)': { lat: 9.203337, lng: 105.129712 },
-    'QT4 (Quan trắc)': { lat: 9.178851, lng: 105.162845 },
-    'QT5 (Quan trắc)': { lat: 9.178642307966712, lng: 105.1542747288355 },
-    'TRẠM ĐO LƯU LƯỢNG 1': { lat: 9.205658, lng: 105.12963 }
+    'QT5 (Quan trắc)': { lat: 9.178642307966712, lng: 105.1542747288355 }
 };
 
 module.exports = { MQTT_STATION_COORDINATES };

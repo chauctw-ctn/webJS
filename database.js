@@ -612,17 +612,21 @@ function checkStationsValueChanges(timeoutMinutes = 60) {
     return new Promise((resolve, reject) => {
         const results = {};
         const cutoffTime = new Date(Date.now() - timeoutMinutes * 60 * 1000).toISOString();
+        const now = new Date();
         
         console.log(`🔍 Checking value changes for stations (timeout: ${timeoutMinutes} min, cutoff: ${cutoffTime})`);
         
-        // Query để lấy danh sách tất cả các trạm có dữ liệu trong khoảng thời gian
-        // Kiểm tra xem có thay đổi giá trị hay không (excluding "Tổng Lưu Lượng" vì luôn tăng)
+        // Query để lấy danh sách tất cả các trạm có dữ liệu
+        // Kiểm tra:
+        // 1. Timestamp mới nhất của station
+        // 2. Có thay đổi giá trị trong khoảng timeout hay không
         const tvaQuery = `
             SELECT 
                 station_name,
                 parameter_name,
                 COUNT(DISTINCT value) as distinct_values,
                 MAX(timestamp) as last_update,
+                MIN(timestamp) as first_update,
                 COUNT(*) as total_records
             FROM tva_data
             WHERE timestamp >= ?
@@ -677,6 +681,7 @@ function checkStationsValueChanges(timeoutMinutes = 60) {
                     parameter_name,
                     COUNT(DISTINCT value) as distinct_values,
                     MAX(timestamp) as last_update,
+                    MIN(timestamp) as first_update,
                     COUNT(*) as total_records
                 FROM mqtt_data
                 WHERE timestamp >= ?
@@ -730,6 +735,7 @@ function checkStationsValueChanges(timeoutMinutes = 60) {
                         parameter_name,
                         COUNT(DISTINCT value) as distinct_values,
                         MAX(timestamp) as last_update,
+                        MIN(timestamp) as first_update,
                         COUNT(*) as total_records
                     FROM scada_data
                     WHERE timestamp >= ?
@@ -777,12 +783,52 @@ function checkStationsValueChanges(timeoutMinutes = 60) {
                         }
                     });
                     
-                    // Log kết quả để debug
-                    console.log(`📈 Station status summary:`);
+                    // Log kết quả trước khi áp dụng logic kiểm tra timeout
+                    console.log(`📈 Station status before timeout check:`);
                     Object.keys(results).forEach(stationName => {
                         const station = results[stationName];
                         const changedParams = station.parameters.filter(p => p.hasChange);
-                        console.log(`   ${stationName}: ${station.hasChange ? '✅ ONLINE' : '❌ OFFLINE'} (${changedParams.length}/${station.parameters.length} params changed)`);
+                        console.log(`   ${stationName}: hasChange=${station.hasChange}, lastUpdate=${station.lastUpdate}, params=${changedParams.length}/${station.parameters.length}`);
+                    });
+                    
+                    // Áp dụng logic: kiểm tra thời gian log dữ liệu trong SQL với thời gian hiện tại
+                    // Nếu lớn hơn khoảng thời gian cài đặt MÀ dữ liệu không có sự thay đổi → OFFLINE
+                    Object.keys(results).forEach(stationName => {
+                        const station = results[stationName];
+                        
+                        if (station.lastUpdate) {
+                            const lastUpdateTime = new Date(station.lastUpdate);
+                            const timeDiffMinutes = (now - lastUpdateTime) / (1000 * 60);
+                            
+                            // Logic mới:
+                            // - Nếu thời gian từ lần cập nhật cuối > timeout VÀ không có thay đổi → OFFLINE
+                            // - Nếu thời gian từ lần cập nhật cuối > timeout NHƯNG có thay đổi → ONLINE (dữ liệu cũ nhưng có biến đổi)
+                            // - Nếu thời gian từ lần cập nhật cuối <= timeout → ONLINE (dữ liệu mới)
+                            if (timeDiffMinutes > timeoutMinutes && !station.hasChange) {
+                                // Dữ liệu cũ và không có thay đổi → OFFLINE
+                                station.hasChange = false;
+                                console.log(`   ⚠️ ${stationName}: OFFLINE (last update ${timeDiffMinutes.toFixed(1)}min ago, no changes)`);
+                            } else if (timeDiffMinutes > timeoutMinutes && station.hasChange) {
+                                // Dữ liệu cũ nhưng có thay đổi → vẫn coi là ONLINE
+                                station.hasChange = true;
+                                console.log(`   ℹ️ ${stationName}: ONLINE (last update ${timeDiffMinutes.toFixed(1)}min ago, but has changes)`);
+                            } else {
+                                // Dữ liệu mới → ONLINE
+                                station.hasChange = true;
+                                console.log(`   ✅ ${stationName}: ONLINE (last update ${timeDiffMinutes.toFixed(1)}min ago)`);
+                            }
+                        } else {
+                            // Không có thông tin cập nhật → OFFLINE
+                            station.hasChange = false;
+                            console.log(`   ❌ ${stationName}: OFFLINE (no update info)`);
+                        }
+                    });
+                    
+                    // Log kết quả cuối cùng
+                    console.log(`📊 Final station status summary:`);
+                    Object.keys(results).forEach(stationName => {
+                        const station = results[stationName];
+                        console.log(`   ${stationName}: ${station.hasChange ? '✅ ONLINE' : '❌ OFFLINE'}`);
                     });
                     
                     resolve(results);

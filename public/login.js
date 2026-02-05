@@ -6,14 +6,18 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
     const errorMessage = document.getElementById('error-message');
     const submitBtn = e.target.querySelector('button[type="submit"]');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const spinner = submitBtn.querySelector('.spinner');
     
     // Clear previous error
     errorMessage.classList.remove('show');
     errorMessage.textContent = '';
     
-    // Disable button
+    // Show loading state
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Đang đăng nhập...';
+    submitBtn.classList.add('loading');
+    btnText.textContent = 'Đang đăng nhập...';
+    spinner.style.display = 'inline-block';
     
     try {
         const response = await fetch('/api/login', {
@@ -32,21 +36,35 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             localStorage.setItem('username', result.username);
             localStorage.setItem('userRole', result.role);
             
-            // Redirect to main page
-            window.location.href = '/';
+            // Add transition effect before redirect
+            document.body.classList.add('transitioning');
+            document.querySelector('.page-transition-overlay').classList.add('active');
+            
+            // Redirect after animation
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 400);
         } else {
             // Show error
             errorMessage.textContent = result.message || 'Đăng nhập thất bại';
             errorMessage.classList.add('show');
+            
+            // Reset button state
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Đăng nhập';
+            submitBtn.classList.remove('loading');
+            btnText.textContent = 'Đăng nhập';
+            spinner.style.display = 'none';
         }
     } catch (error) {
         console.error('Login error:', error);
         errorMessage.textContent = 'Lỗi kết nối. Vui lòng thử lại.';
         errorMessage.classList.add('show');
+        
+        // Reset button state
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Đăng nhập';
+        submitBtn.classList.remove('loading');
+        btnText.textContent = 'Đăng nhập';
+        spinner.style.display = 'none';
     }
 });
 

@@ -21,9 +21,7 @@ const DEVICE_NAME_MAP = {
     'QT2': 'QT2 (182/GP-BTNMT)',
     'QT2_NM2': 'QT2-NM2 (Quan trắc NM2)',
     'QT2M': 'QT2 (182/GP-BTNMT)',
-    'QT4': 'QT4 (Quan trắc)',
-    'QT5': 'QT5 (Quan trắc)',
-    'LUULUONG1': 'TRẠM ĐO LƯU LƯỢNG 1'
+    'QT5': 'QT5 (Quan trắc)'
 };
 
 // Mapping tên thông số
@@ -162,8 +160,14 @@ function updateStationsFormat() {
     if (!cachedData.deviceGroups) return;
     
     for (const deviceCode in cachedData.deviceGroups) {
+        // Bỏ qua các device không có trong DEVICE_NAME_MAP
+        if (!DEVICE_NAME_MAP[deviceCode]) {
+            console.warn(`⚠️ Bỏ qua device không có trong cấu hình: ${deviceCode}`);
+            continue;
+        }
+        
         const device = cachedData.deviceGroups[deviceCode];
-        const stationName = DEVICE_NAME_MAP[deviceCode] || deviceCode;
+        const stationName = DEVICE_NAME_MAP[deviceCode];
         
         const parameters = Object.values(device.parameters);
         

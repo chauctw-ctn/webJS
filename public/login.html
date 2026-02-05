@@ -3,23 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#0066cc">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Đăng nhập - VIWATER SCADA</title>
+    <title>Đăng nhập - CAWACO</title>
     <link rel="stylesheet" href="login.css">
 </head>
 <body>
     <div class="login-container">
         <div class="login-box">
             <div class="logo">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2">
-                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
-                    <path d="M12 8v8M8 12h8"/>
-                </svg>
+                <img src="http://14.225.252.85/assets/images/logo.png" alt="Logo" style="max-width: 120px; height: auto;">
             </div>
-            <h1>VIWATER SCADA</h1>
+            <h1>CAWACO</h1>
             <h2>Đăng nhập hệ thống</h2>
             
             <form id="login-form">
@@ -35,14 +32,24 @@
                 
                 <div id="error-message" class="error-message"></div>
                 
-                <button type="submit" class="login-btn">Đăng nhập</button>
+                <button type="submit" class="login-btn">
+                    <span class="btn-text">Đăng nhập</span>
+                    <span class="spinner" style="display: none;">
+                        <svg class="spinner-svg" viewBox="0 0 50 50">
+                            <circle class="spinner-circle" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                        </svg>
+                    </span>
+                </button>
             </form>
             
             <div class="footer">
-                <p>&copy; 2026 VIWATER SCADA System</p>
+                <p>&copy; 2026 CAWACO System</p>
             </div>
         </div>
     </div>
+    
+    <!-- Page transition overlay -->
+    <div class="page-transition-overlay"></div>
     
     <script src="login.js"></script>
 </body>

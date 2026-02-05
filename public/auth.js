@@ -64,9 +64,16 @@ function updateUserUI() {
     const username = localStorage.getItem('username');
     const userRole = localStorage.getItem('userRole');
     
+    const usernameDisplay = document.getElementById('username-display');
     const dropdownUsername = document.getElementById('dropdown-username');
     const dropdownRole = document.getElementById('dropdown-role');
     const addUserBtn = document.getElementById('add-user-btn');
+    const manageUsersBtn = document.getElementById('manage-users-btn');
+    
+    // Update username displays
+    if (usernameDisplay) {
+        usernameDisplay.textContent = username || '';
+    }
     
     if (dropdownUsername) {
         dropdownUsername.textContent = username || 'Người dùng';
@@ -83,7 +90,6 @@ function updateUserUI() {
     }
     
     // Show/hide manage users button based on role
-    const manageUsersBtn = document.getElementById('manage-users-btn');
     if (manageUsersBtn) {
         manageUsersBtn.style.display = userRole === 'admin' ? 'flex' : 'none';
     }

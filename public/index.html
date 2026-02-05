@@ -21,6 +21,7 @@
         <div class="header-content">
             <button class="menu-btn" id="menu-btn">☰</button>
             <div class="logo-section">
+                <img src="http://14.225.252.85/assets/images/logo.png" alt="Logo" class="header-logo">
                 <div class="company-info">
                     <h1 class="company-name">CÔNG TY CỔ PHẦN CẤP NƯỚC CÀ MAU</h1>
                     <p class="company-address">204 Quang Trung, P. Tân Thành, Cà Mau</p>
@@ -93,52 +94,78 @@
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-content">
-            <!-- Station Stats Section -->
-            <div class="sidebar-section">
-                <div class="section-header">
-                    <svg class="section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
-                    </svg>
-                    <span>THỐNG KÊ TRẠM</span>
-                </div>
-                <div class="station-stats" id="station-stats">
-                    <div class="stat-item total">
-                        <span class="stat-label">Tổng số trạm</span>
-                        <span class="stat-value" id="total-stations">0</span>
-                    </div>
-                    <div class="stat-item tva">
-                        <span class="stat-label">Các trạm TVA</span>
-                        <span class="stat-status" id="tva-status">0/0</span>
-                    </div>
-                    <div class="stat-item mqtt">
-                        <span class="stat-label">Các trạm Tấn Lợi</span>
-                        <span class="stat-status" id="mqtt-status">0/0</span>
-                    </div>
-                    <div class="stat-item scada">
-                        <span class="stat-label">Các trạm Đức Hùng</span>
-                        <span class="stat-status" id="scada-status">0/0</span>
-                    </div>
-                </div>
-            </div>
-            
             <!-- Navigation Section -->
             <div class="sidebar-section">
-            </div>
-            <button class="menu-item active" id="dashboard-btn">
+                <button class="menu-item menu-item-expandable" id="dashboard-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                         <polyline points="9 22 9 12 15 12 15 22"/>
                     </svg>
                     <span>Dashboard</span>
+                    <span class="expand-arrow">▼</span>
                 </button>
+                
+                <!-- Dashboard Filters Content -->
+                <div class="menu-item-content" id="dashboard-content">
+                    <div class="filter-content">
+                        <!-- Lọc theo nhóm -->
+                        <div class="filter-group">
+                            <label class="filter-checkbox-item compact">
+                                <input type="checkbox" id="filter-all" class="group-filter-checkbox" data-group="all" checked>
+                                <span><strong>Tất cả nhóm</strong> <span class="group-count" id="all-count">(0/0)</span></span>
+                            </label>
+                            <label class="filter-checkbox-item compact">
+                                <input type="checkbox" id="filter-tva" class="group-filter-checkbox" data-group="tva" checked>
+                                <span>Nhóm TVA <span class="group-count" id="tva-count">(0/0)</span></span>
+                            </label>
+                            <label class="filter-checkbox-item compact">
+                                <input type="checkbox" id="filter-mqtt" class="group-filter-checkbox" data-group="mqtt" checked>
+                                <span>Nhóm Tấn Lợi <span class="group-count" id="mqtt-count">(0/0)</span></span>
+                            </label>
+                            <label class="filter-checkbox-item compact">
+                                <input type="checkbox" id="filter-scada" class="group-filter-checkbox" data-group="scada" checked>
+                                <span>Nhóm Đức Hùng <span class="group-count" id="scada-count">(0/0)</span></span>
+                            </label>
+                        </div>
+                        
+                        <!-- Chọn trạm hiển thị -->
+                        <div class="filter-divider"></div>
+                        <div class="filter-group" style="margin-top: 8px;">
+                            <div class="multi-select-wrapper">
+                                <div class="multi-select-display" id="station-display">
+                                    <span class="selected-text">Chọn trạm...</span>
+                                    <span class="arrow">▼</span>
+                                </div>
+                                <div class="multi-select-dropdown" id="station-dropdown">
+                                    <label class="checkbox-item station-all-item">
+                                        <input type="checkbox" id="station-all-checkbox" class="station-all-checkbox">
+                                        <span><strong>Tất cả trạm</strong></span>
+                                    </label>
+                                    <div class="dropdown-divider"></div>
+                                    <div id="station-checkbox-list">
+                                        <!-- Will be populated dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Cài đặt thời gian offline -->
+                        <div class="filter-divider"></div>
+                        <div class="setting-group" style="margin-top: 8px;">
+                            <div class="input-with-unit">
+                                <input type="number" id="offline-timeout" min="1" max="1440" value="60" class="setting-input">
+                                <span class="input-unit">phút</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <a href="scada.html" class="menu-item" id="scada-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                         <line x1="8" y1="21" x2="16" y2="21"/>
                         <line x1="12" y1="17" x2="12" y2="21"/>
                     </svg>
-                    <span>CHẤT LƯỢNG NƯỚC</span>
+                    <span>Chất lượng nước</span>
                 </a>
                 <button class="menu-item" id="stats-toggle-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -149,80 +176,11 @@
                     <span>Thống kê dữ liệu</span>
                 </button>
             </div>
-
-            <!-- Station List Section -->
-            <div class="sidebar-section" id="station-list-section">
-                <div class="section-header">
-                    <svg class="section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                    <span>DANH SÁCH TRẠM</span>
-                </div>
-                <div class="filter-content">
-                    <div class="multi-select-wrapper">
-                        <div class="multi-select-display" id="station-display-sidebar">
-                            <span class="selected-text">Chọn trạm...</span>
-                            <span class="arrow">▼</span>
-                        </div>
-                        <div class="multi-select-dropdown" id="station-dropdown-sidebar">
-                            <label class="checkbox-item station-all-item">
-                                <input type="checkbox" id="station-all-checkbox-sidebar" class="station-all-checkbox">
-                                <span><strong>Tất cả trạm</strong></span>
-                            </label>
-                            <div class="dropdown-divider"></div>
-                            <div id="station-checkbox-list-sidebar">
-                                <!-- Will be populated dynamically -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Settings Section -->
-            <div class="sidebar-section" id="offline-settings-section">
-                <div class="section-header">
-                    <svg class="section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M12 1v6m0 6v6m6-12l-3 3m-6 6l-3 3m12-6h-6m-6 0H1m18-6l-3 3m-6 6l-3 3"/>
-                    </svg>
-                    <span>CÀI ĐẶT THỜI GIAN OFFLINE </span>
-                </div>
-                <div class="filter-content">
-                    <div class="setting-group">
-                        <div class="input-with-unit">
-                            <input type="number" id="offline-timeout" min="1" max="1440" value="60" class="setting-input">
-                            <span class="input-unit">phút</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
     <!-- Map Container -->
     <div id="map" class="with-sidebar">
-        <!-- Station Filter Dropdown on Map -->
-        <div class="map-controls">
-            <div class="station-filter-control">
-                <div class="multi-select-wrapper">
-                    <div class="multi-select-display" id="station-display">
-                        <span class="selected-text">Chọn trạm...</span>
-                        <span class="arrow">▼</span>
-                    </div>
-                    <div class="multi-select-dropdown" id="station-dropdown">
-                        <label class="checkbox-item station-all-item">
-                            <input type="checkbox" id="station-all-checkbox" class="station-all-checkbox">
-                            <span><strong>Tất cả trạm</strong></span>
-                        </label>
-                        <div class="dropdown-divider"></div>
-                        <div id="station-checkbox-list">
-                            <!-- Will be populated dynamically -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Loading Overlay -->

@@ -4,6 +4,22 @@
 
     // Thêm smooth transition khi chuyển trang
     function smoothPageTransition(url) {
+        // Collapse dashboard menu nếu đang mở
+        const dashboardBtn = document.getElementById('dashboard-btn');
+        const dashboardContent = document.getElementById('dashboard-content');
+        if (dashboardBtn && dashboardContent) {
+            dashboardBtn.classList.remove('expanded');
+            dashboardBtn.classList.remove('active');
+            dashboardContent.classList.remove('active');
+            dashboardContent.style.display = 'none';
+        }
+        
+        // Close user dropdown if open
+        const userDropdown = document.getElementById('user-dropdown');
+        const userMenuBtn = document.getElementById('user-menu-btn');
+        if (userDropdown) userDropdown.classList.remove('show');
+        if (userMenuBtn) userMenuBtn.classList.remove('active');
+        
         // Thêm class transitioning
         document.body.classList.add('page-transitioning');
         
@@ -15,11 +31,8 @@
 
     // Intercept tất cả link clicks để thêm smooth transition
     document.addEventListener('DOMContentLoaded', function() {
-        // Fade in khi trang load
-        document.body.style.opacity = '0';
-        setTimeout(() => {
-            document.body.style.opacity = '1';
-        }, 10);
+        // Add loading class immediately
+        document.body.classList.add('loading');
 
         // Tìm tất cả các link nội bộ
         const links = document.querySelectorAll('a[href^="/"]:not([target="_blank"]), a[href$=".html"]:not([target="_blank"])');
@@ -40,7 +53,7 @@
         window.addEventListener('pageshow', function(event) {
             if (event.persisted) {
                 document.body.classList.remove('page-transitioning');
-                document.body.style.opacity = '1';
+                document.body.classList.remove('loading');
             }
         });
     });
