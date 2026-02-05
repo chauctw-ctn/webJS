@@ -413,6 +413,9 @@ app.get('/api/stations', async (req, res) => {
                         data: dbStation.data,
                         timestamp: dbStation.timestamp
                     });
+                    console.log(`   ✅ MQTT station added: ${stationName} (${coords.lat}, ${coords.lng})`);
+                } else {
+                    console.warn(`   ⚠️ No coordinates found for MQTT station: ${stationName}`);
                 }
             });
         } else if (fs.existsSync('data_mqtt.json')) {

@@ -183,6 +183,7 @@ function saveTVAData(stations) {
 function saveMQTTData(stations) {
     return new Promise((resolve, reject) => {
         if (!stations || stations.length === 0) {
+            console.log('⚠️ No MQTT stations to save');
             resolve(0);
             return;
         }
@@ -190,6 +191,8 @@ function saveMQTTData(stations) {
         const timestamp = new Date().toISOString();
         let savedCount = 0;
         let errors = [];
+
+        console.log(`💾 Saving ${stations.length} MQTT stations to database`);
 
         db.serialize(() => {
             const stmt = db.prepare(`
@@ -199,6 +202,8 @@ function saveMQTTData(stations) {
 
             stations.forEach(station => {
                 const stationId = `mqtt_${station.station.replace(/\s+/g, '_')}`;
+                
+                console.log(`   💾 Saving MQTT station: ${station.station} (ID: ${stationId})`);
                 
                 // Lưu thông tin trạm
                 saveStationInfo(stationId, station.station, 'MQTT', station.lat, station.lng);
@@ -234,6 +239,7 @@ function saveMQTTData(stations) {
                     if (errors.length > 0) {
                         console.warn(`⚠️ Có ${errors.length} lỗi khi lưu dữ liệu MQTT`);
                     }
+                    console.log(`✅ Successfully saved ${savedCount} MQTT records`);
                     resolve(savedCount);
                 }
             });
