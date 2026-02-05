@@ -1,17 +1,17 @@
 {
-  "timestamp": "2026-02-05T05:47:50.144Z",
+  "timestamp": "2026-02-05T05:47:52.491Z",
   "totalStations": 13,
   "stations": [
     {
       "station": "QT2 (182/GP-BTNMT)",
-      "updateTime": "2026-02-05T05:47:04+0000",
+      "updateTime": "2026-02-05T05:47:34+0000",
       "lat": 9.179219,
       "lng": 105.139376,
       "data": [
         {
           "stt": "1",
           "name": "Mực nước",
-          "time": "12:47:04 5/2/2026",
+          "time": "12:47:34 5/2/2026",
           "value": "26.52",
           "unit": "m",
           "limit": ""
@@ -19,7 +19,7 @@
         {
           "stt": "2",
           "name": "Nhiệt độ nước",
-          "time": "12:47:04 5/2/2026",
+          "time": "12:47:34 5/2/2026",
           "value": "30.91",
           "unit": "°C",
           "limit": ""
@@ -340,14 +340,14 @@
     },
     {
       "station": "QT1-NM2 (Quan trắc NM2)",
-      "updateTime": "2026-02-05T05:45:23+0000",
+      "updateTime": "2026-02-05T05:46:23+0000",
       "lat": 9.205658,
       "lng": 105.12963,
       "data": [
         {
           "stt": "1",
           "name": "Mực nước",
-          "time": "12:45:23 5/2/2026",
+          "time": "12:46:23 5/2/2026",
           "value": "28.19",
           "unit": "m",
           "limit": ""
@@ -390,23 +390,23 @@
   "deviceGroups": {
     "QT2": {
       "deviceCode": "QT2",
-      "lastUpdate": "2026-02-05T05:47:04+0000",
+      "lastUpdate": "2026-02-05T05:47:34+0000",
       "parameters": {
         "MUCNUOC": {
           "name": "Mực nước",
-          "time": "12:47:04 5/2/2026",
+          "time": "12:47:34 5/2/2026",
           "value": 26.52,
           "unit": "m",
           "rawType": "MUCNUOC",
-          "timestamp": "2026-02-05T05:47:04+0000"
+          "timestamp": "2026-02-05T05:47:34+0000"
         },
         "NHIETDO": {
           "name": "Nhiệt độ nước",
-          "time": "12:47:04 5/2/2026",
+          "time": "12:47:34 5/2/2026",
           "value": 30.91,
           "unit": "°C",
           "rawType": "NHIETDO",
-          "timestamp": "2026-02-05T05:47:04+0000"
+          "timestamp": "2026-02-05T05:47:34+0000"
         }
       }
     },
@@ -704,15 +704,15 @@
     },
     "QT1_NM2": {
       "deviceCode": "QT1_NM2",
-      "lastUpdate": "2026-02-05T05:45:23+0000",
+      "lastUpdate": "2026-02-05T05:46:23+0000",
       "parameters": {
         "MUCNUOC": {
           "name": "Mực nước",
-          "time": "12:45:23 5/2/2026",
+          "time": "12:46:23 5/2/2026",
           "value": 28.19,
           "unit": "m",
           "rawType": "MUCNUOC",
-          "timestamp": "2026-02-05T05:45:23+0000"
+          "timestamp": "2026-02-05T05:46:23+0000"
         }
       }
     },
