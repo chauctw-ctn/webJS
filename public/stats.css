@@ -833,7 +833,10 @@ main:not(.with-sidebar) {
     }
     
     .icon-btn {
-        padding: 6px;
+        padding: 10px;
+        min-width: 44px;
+        min-height: 44px;
+        touch-action: manipulation;
     }
     
     .sidebar {
@@ -872,15 +875,18 @@ main:not(.with-sidebar) {
     .data-table-wrapper {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        border-radius: 8px;
     }
     
     .data-table {
-        font-size: 13px;
+        font-size: 14px;
     }
     
     .data-table th,
     .data-table td {
-        padding: 10px 8px;
+        padding: 12px 10px;
+        white-space: nowrap;
     }
     
     .user-menu-btn {
@@ -1328,4 +1334,67 @@ button {
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Mobile-specific optimizations for stats page */
+@media (max-width: 768px) {
+    /* Sidebar logo styling */
+    .sidebar-logo {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding-bottom: 15px;
+        margin-bottom: 10px;
+    }
+    
+    /* Improve menu item touch targets */
+    .menu-item {
+        min-height: 48px;
+        padding: 12px 16px;
+        font-size: 15px;
+    }
+    
+    /* Better form inputs */
+    input[type="date"],
+    input[type="time"],
+    select {
+        min-height: 44px;
+        font-size: 16px; /* Prevents iOS zoom */
+        padding: 10px 12px;
+    }
+    
+    /* Filter button improvements */
+    .filter-btn,
+    .export-btn {
+        min-height: 48px;
+        padding: 12px 20px;
+        font-size: 15px;
+        touch-action: manipulation;
+    }
+    
+    /* Table improvements */
+    .data-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .data-table th {
+        position: sticky;
+        top: 0;
+        background: #f8fafc;
+        z-index: 10;
+    }
+}
+
+/* Performance optimizations */
+@media (max-width: 768px) {
+    .sidebar,
+    .sidebar-overlay,
+    .dropdown-menu {
+        will-change: transform;
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+}
+
     background: #555;

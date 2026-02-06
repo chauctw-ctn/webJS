@@ -1495,8 +1495,9 @@ body.page-transitioning {
     
     .leaflet-popup-content {
         margin: 0;
-        min-width: 200px !important;
-        max-width: 280px !important;
+        min-width: 220px !important;
+        max-width: 300px !important;
+        font-size: 14px;
     }
     
     .leaflet-popup-tip {
@@ -1557,17 +1558,19 @@ body.page-transitioning {
     }
     
     .menu-btn {
-        padding: 8px 10px;
-        font-size: 22px;
+        padding: 10px 12px;
+        font-size: 24px;
         min-width: 48px;
         min-height: 48px;
+        touch-action: manipulation;
     }
     
     .sidebar {
         width: 100%;
-        max-width: 300px;
+        max-width: 320px;
         left: -100%;
-        transition: left 0.3s ease-in-out;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-overflow-scrolling: touch;
     }
     
     .sidebar:not(.hidden) {
@@ -1587,13 +1590,14 @@ body.page-transitioning {
     /* Station filter control styles removed - now in sidebar */
     
     .station-popup {
-        min-width: 200px;
-        padding: 12px 14px;
-        font-size: 13px;
+        min-width: 220px;
+        padding: 14px 16px;
+        font-size: 14px;
     }
     
     .popup-header {
-        font-size: 15px;
+        font-size: 16px;
+        font-weight: 600;
     }
     
     .data-row {
@@ -1611,7 +1615,10 @@ body.page-transitioning {
     }
     
     .user-menu-btn {
-        padding: 6px 10px;
+        padding: 10px 14px;
+        min-width: 48px;
+        min-height: 48px;
+        font-size: 15px;
     }
     
     .auth-section {
@@ -2252,4 +2259,85 @@ button {
 .table-container,
 .modal-content {
     scroll-behavior: smooth;
+}
+/* Mobile-specific optimizations */
+@media (max-width: 768px) {
+    /* Sidebar logo styling for mobile */
+    .sidebar-logo {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding-bottom: 15px;
+        margin-bottom: 10px;
+    }
+    
+    /* Improve menu item touch targets */
+    .menu-item {
+        min-height: 48px;
+        padding: 12px 16px;
+        font-size: 15px;
+    }
+    
+    .menu-item svg {
+        width: 22px;
+        height: 22px;
+    }
+    
+    /* Filter checkboxes - larger touch targets */
+    .filter-checkbox-item,
+    .checkbox-item {
+        min-height: 44px;
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+    
+    .filter-checkbox-item input[type="checkbox"],
+    .checkbox-item input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+    }
+    
+    /* Improve stat cards on mobile */
+    .stat-card {
+        padding: 14px;
+        min-height: 85px;
+    }
+    
+    .stat-card h3 {
+        font-size: 15px;
+    }
+    
+    .stat-card .stat-number {
+        font-size: 26px;
+    }
+    
+    /* Better spacing for filter groups */
+    .filter-group {
+        margin-bottom: 16px;
+    }
+    
+    .filter-group label {
+        font-size: 14px;
+        font-weight: 600;
+    }
+}
+
+/* Performance optimizations for mobile */
+@media (max-width: 768px) {
+    /* Use GPU acceleration for animations */
+    .sidebar,
+    .sidebar-overlay,
+    .menu-btn,
+    .user-menu,
+    .dropdown-menu {
+        will-change: transform;
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+    
+    /* Optimize map rendering */
+    #map {
+        will-change: transform;
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+    }
 }

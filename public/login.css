@@ -297,6 +297,23 @@ body.transitioning .login-box {
     .logo img {
         max-width: 110px;
     }
+    
+    /* Better form inputs for mobile */
+    input[type="text"],
+    input[type="password"] {
+        font-size: 16px; /* Prevents iOS zoom */
+        min-height: 48px;
+        padding: 12px 16px;
+    }
+    
+    /* Better buttons for touch */
+    button[type="submit"],
+    .btn-primary {
+        min-height: 48px;
+        font-size: 16px;
+        padding: 12px 24px;
+        touch-action: manipulation;
+    }
 }
 
 /* Mobile Specific */
@@ -407,4 +424,19 @@ body.transitioning .login-box {
     body {
         padding-left: max(10px, env(safe-area-inset-left));
         padding-right: max(10px, env(safe-area-inset-right));
+        padding-top: max(10px, env(safe-area-inset-top));
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Performance optimizations for mobile */
+@media (max-width: 768px) {
+    .login-box {
+        will-change: transform;
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+}
+
         padding-bottom: max(10px, env(safe-area-inset-bottom));

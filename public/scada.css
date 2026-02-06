@@ -854,8 +854,10 @@ body {
     .refresh-btn {
         flex: 1;
         justify-content: center;
-        min-height: 44px;
+        min-height: 48px;
         font-size: 15px;
+        padding: 12px 20px;
+        touch-action: manipulation;
     }
     
     .station-card {
@@ -884,22 +886,24 @@ body {
     }
     
     .station-panel__metrics { 
-        padding: 12px; 
-        gap: 10px;
+        padding: 14px; 
+        gap: 12px;
         grid-template-columns: 1fr;
     }
     
     .hmi-block { 
-        padding: 12px 14px; 
-        min-height: 70px;
+        padding: 16px; 
+        min-height: 80px;
+        touch-action: manipulation;
     }
     
     .hmi-value { 
-        font-size: 20px;
+        font-size: 22px;
+        font-weight: 600;
     }
     
     .hmi-label {
-        font-size: 13px;
+        font-size: 14px;
     }
     
     .last-update-info {
@@ -969,4 +973,33 @@ body {
     .hmi-block {
         min-height: 60px;
         padding: 8px 10px;
+    }
+}
+
+/* Mobile-specific optimizations for scada page */
+@media (max-width: 768px) {
+    /* Sidebar logo styling */
+    .sidebar-logo {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding-bottom: 15px;
+        margin-bottom: 10px;
+    }
+    
+    /* Improve menu item touch targets */
+    .menu-item {
+        min-height: 48px;
+        padding: 12px 16px;
+        font-size: 15px;
+    }
+    
+    /* Better parameter cards */
+    .param-grid {
+        gap: 12px;
+    }
+    
+    .param-card {
+        padding: 14px;
+        min-height: 75px;
+    }
+}
     }
