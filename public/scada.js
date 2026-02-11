@@ -12,7 +12,18 @@ function updateLastUpdate() {
     const timestamp = new Date(scadaData.timestamp);
     const el = document.getElementById('lastUpdate');
     if (!el) return;
-    el.textContent = `Cập nhật lần cuối: ${timestamp.toLocaleString('vi-VN')} | Nguồn: ${scadaData.source || 'SCADA'} | Phương thức: ${scadaData.method || 'N/A'}`;
+    // Format theo timezone Việt Nam (GMT+7)
+    const formatter = new Intl.DateTimeFormat('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+    el.textContent = `Cập nhật lần cuối: ${formatter.format(timestamp)} | Nguồn: ${scadaData.source || 'SCADA'} | Phương thức: ${scadaData.method || 'N/A'}`;
 }
 
 // Load SCADA data

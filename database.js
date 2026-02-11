@@ -199,18 +199,21 @@ async function saveTVAData(stations) {
         for (const station of stations) {
             const stationId = `tva_${station.station.replace(/\s+/g, '_')}`;
             
+            // Lấy timestamp một lần cho toàn bộ station (đồng bộ tất cả parameters)
+            const stationTimestamp = (await client.query('SELECT CURRENT_TIMESTAMP as ts')).rows[0].ts;
+            const updateTime = stationTimestamp.toISOString();
+            
             // Lưu thông tin trạm
-            await saveStationInfo(stationId, station.station, 'TVA', null, null);
+            await saveStationInfo(stationId, station.station, 'TVA', null, null, client);
 
-            // Lưu từng thông số
+            // Lưu từng thông số với cùng timestamp
             if (station.data && Array.isArray(station.data)) {
                 for (const param of station.data) {
                     try {
-                        // Sử dụng CURRENT_TIMESTAMP của PostgreSQL để lấy thời gian hiện tại
                         await client.query(
                             `INSERT INTO tva_data (station_name, station_id, parameter_name, value, unit, timestamp, update_time)
-                             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                            [station.station, stationId, param.name, param.value, param.unit]
+                             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                            [station.station, stationId, param.name, param.value, param.unit, stationTimestamp, updateTime]
                         );
                         savedCount++;
                     } catch (err) {
@@ -262,18 +265,21 @@ async function saveMQTTData(stations) {
             
             console.log(`   💾 Saving MQTT station: ${station.station} (ID: ${stationId})`);
             
+            // Lấy timestamp một lần cho toàn bộ station (đồng bộ tất cả parameters)
+            const stationTimestamp = (await client.query('SELECT CURRENT_TIMESTAMP as ts')).rows[0].ts;
+            const updateTime = stationTimestamp.toISOString();
+            
             // Lưu thông tin trạm
-            await saveStationInfo(stationId, station.station, 'MQTT', station.lat, station.lng);
+            await saveStationInfo(stationId, station.station, 'MQTT', station.lat, station.lng, client);
 
-            // Lưu từng thông số
+            // Lưu từng thông số với cùng timestamp
             if (station.data && Array.isArray(station.data)) {
                 for (const param of station.data) {
                     try {
-                        // Sử dụng CURRENT_TIMESTAMP của PostgreSQL để lấy thời gian hiện tại
                         await client.query(
                             `INSERT INTO mqtt_data (station_name, station_id, device_name, parameter_name, value, unit, timestamp, update_time)
-                             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                            [station.station, stationId, station.deviceName || '', param.name, param.value, param.unit]
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                            [station.station, stationId, station.deviceName || '', param.name, param.value, param.unit, stationTimestamp, updateTime]
                         );
                         savedCount++;
                     } catch (err) {
@@ -322,10 +328,14 @@ async function saveSCADAData(stationsGrouped) {
         for (const station of Object.values(stationsGrouped)) {
             const stationId = `scada_${station.station}`;
             
+            // Lấy timestamp một lần cho toàn bộ station (đồng bộ tất cả parameters)
+            const stationTimestamp = (await client.query('SELECT CURRENT_TIMESTAMP as ts')).rows[0].ts;
+            const updateTime = stationTimestamp.toISOString();
+            
             // Lưu thông tin trạm (không có lat/lng cho SCADA)
-            await saveStationInfo(stationId, station.stationName || station.station, 'SCADA', null, null);
+            await saveStationInfo(stationId, station.stationName || station.station, 'SCADA', null, null, client);
 
-            // Lưu từng thông số
+            // Lưu từng thông số với cùng timestamp
             if (station.parameters && Array.isArray(station.parameters)) {
                 for (const param of station.parameters) {
                     // Parse value từ displayText hoặc value
@@ -339,12 +349,11 @@ async function saveSCADAData(stationsGrouped) {
                     }
 
                     try {
-                        // Sử dụng CURRENT_TIMESTAMP của PostgreSQL để lấy thời gian hiện tại
                         await client.query(
                             `INSERT INTO scada_data (station_name, station_id, parameter_name, value, unit, timestamp, update_time)
-                             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
                             [station.stationName || station.station, stationId, param.parameterName || param.parameter, 
-                             isNaN(numericValue) ? null : numericValue, param.unit || '']
+                             isNaN(numericValue) ? null : numericValue, param.unit || '', stationTimestamp, updateTime]
                         );
                         savedCount++;
                     } catch (err) {
@@ -376,11 +385,11 @@ async function saveSCADAData(stationsGrouped) {
 /**
  * Lưu hoặc cập nhật thông tin trạm
  */
-async function saveStationInfo(stationId, stationName, stationType, lat, lng) {
-    const client = await pool.connect();
+async function saveStationInfo(stationId, stationName, stationType, lat, lng, client = null) {
+    const useClient = client || await pool.connect();
     
     try {
-        await client.query(`
+        await useClient.query(`
             INSERT INTO stations (station_id, station_name, station_type, latitude, longitude)
             VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT(station_id) DO UPDATE SET
@@ -392,7 +401,10 @@ async function saveStationInfo(stationId, stationName, stationType, lat, lng) {
     } catch (err) {
         console.error(`❌ Lỗi lưu thông tin trạm ${stationId}:`, err.message);
     } finally {
-        client.release();
+        // Chỉ release nếu tạo connection mới
+        if (!client) {
+            useClient.release();
+        }
     }
 }
 
