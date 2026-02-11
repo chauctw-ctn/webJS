@@ -101,6 +101,37 @@ Tất cả các hàm trong `database.js` giữ nguyên tên và cách sử dụn
 - `cleanOldData(daysToKeep)` - Xóa dữ liệu cũ
 - `closeDatabase()` - Đóng connection
 
+**Visitor Tracking (Mới):**
+- `getVisitorStats()` - Lấy thống kê visitor từ database
+- `incrementVisitorCount()` - Tăng visitor count
+- `setVisitorCount(total)` - Set visitor count (migration/init)
+
+### Visitor Tracking
+
+Hệ thống tracking visitor đã được chuyển sang lưu PostgreSQL:
+
+- **Bắt đầu từ:** 20,102,347 lượt truy cập
+- **Lưu trữ:** Bảng `visitor_stats` trong PostgreSQL
+- **Không bị reset:** Dữ liệu persistent khi restart server
+- **Auto reset:** `today_visitors` tự động reset mỗi ngày mới
+
+**Bảng visitor_stats:**
+```sql
+CREATE TABLE visitor_stats (
+    id SERIAL PRIMARY KEY,
+    total_visitors BIGINT NOT NULL DEFAULT 20102347,
+    today_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    today_visitors INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**Test visitor tracking:**
+```bash
+node test-visitor-db.js
+```
+
 ## Nếu cần rollback về SQLite
 
 ```bash

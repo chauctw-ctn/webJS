@@ -132,6 +132,29 @@ async function initDatabase() {
         `);
         console.log('✅ Bảng stations đã sẵn sàng');
 
+        // Bảng lưu thống kê visitor (không bị reset)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS visitor_stats (
+                id SERIAL PRIMARY KEY,
+                total_visitors BIGINT NOT NULL DEFAULT 20102347,
+                today_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                today_visitors INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Bảng visitor_stats đã sẵn sàng');
+        
+        // Khởi tạo giá trị mặc định nếu chưa có
+        const visitorCheck = await client.query('SELECT COUNT(*) as count FROM visitor_stats');
+        if (parseInt(visitorCheck.rows[0].count) === 0) {
+            await client.query(`
+                INSERT INTO visitor_stats (total_visitors, today_date, today_visitors)
+                VALUES (20102347, CURRENT_DATE, 0)
+            `);
+            console.log('✅ Khởi tạo visitor_stats với total = 20,102,347');
+        }
+
         await client.query('COMMIT');
     } catch (err) {
         await client.query('ROLLBACK');
@@ -1039,6 +1062,117 @@ async function getLatestStationsData() {
     }
 }
 
+/**
+ * Get visitor statistics from database
+ */
+async function getVisitorStats() {
+    try {
+        const result = await pool.query('SELECT * FROM visitor_stats ORDER BY id DESC LIMIT 1');
+        
+        if (result.rows.length === 0) {
+            // Nếu chưa có dữ liệu, tạo mới
+            await pool.query(`
+                INSERT INTO visitor_stats (total_visitors, today_date, today_visitors)
+                VALUES (20102347, CURRENT_DATE, 0)
+                RETURNING *
+            `);
+            return {
+                total_visitors: 20102347,
+                today_visitors: 0,
+                today_date: new Date()
+            };
+        }
+        
+        const stats = result.rows[0];
+        
+        // Kiểm tra nếu sang ngày mới, reset today_visitors
+        const today = new Date().toISOString().split('T')[0];
+        const dbDate = new Date(stats.today_date).toISOString().split('T')[0];
+        
+        if (today !== dbDate) {
+            // Sang ngày mới, reset today_visitors
+            const updated = await pool.query(`
+                UPDATE visitor_stats 
+                SET today_date = CURRENT_DATE, 
+                    today_visitors = 0,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1
+                RETURNING *
+            `, [stats.id]);
+            return {
+                total_visitors: parseInt(updated.rows[0].total_visitors),
+                today_visitors: 0,
+                today_date: new Date()
+            };
+        }
+        
+        return {
+            total_visitors: parseInt(stats.total_visitors),
+            today_visitors: parseInt(stats.today_visitors),
+            today_date: new Date(stats.today_date)
+        };
+    } catch (err) {
+        console.error('Error getting visitor stats:', err);
+        throw err;
+    }
+}
+
+/**
+ * Increment visitor count (called when new unique visitor visits today)
+ */
+async function incrementVisitorCount() {
+    try {
+        const result = await pool.query(`
+            UPDATE visitor_stats 
+            SET total_visitors = total_visitors + 1,
+                today_visitors = today_visitors + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = (SELECT id FROM visitor_stats ORDER BY id DESC LIMIT 1)
+            RETURNING total_visitors, today_visitors
+        `);
+        
+        if (result.rows.length > 0) {
+            return {
+                total_visitors: parseInt(result.rows[0].total_visitors),
+                today_visitors: parseInt(result.rows[0].today_visitors)
+            };
+        }
+        
+        throw new Error('No visitor stats record found');
+    } catch (err) {
+        console.error('Error incrementing visitor count:', err);
+        throw err;
+    }
+}
+
+/**
+ * Set specific visitor count (for initialization or migration)
+ */
+async function setVisitorCount(totalVisitors) {
+    try {
+        const result = await pool.query(`
+            UPDATE visitor_stats 
+            SET total_visitors = $1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = (SELECT id FROM visitor_stats ORDER BY id DESC LIMIT 1)
+            RETURNING *
+        `, [totalVisitors]);
+        
+        if (result.rows.length === 0) {
+            // Nếu chưa có record, tạo mới
+            await pool.query(`
+                INSERT INTO visitor_stats (total_visitors, today_date, today_visitors)
+                VALUES ($1, CURRENT_DATE, 0)
+            `, [totalVisitors]);
+        }
+        
+        console.log(`✅ Set visitor count to ${totalVisitors}`);
+    } catch (err) {
+        console.error('Error setting visitor count:', err);
+        throw err;
+    }
+}
+
 // Để tương thích với code cũ, export pool như biến db
 const db = pool;
 
@@ -1059,5 +1193,8 @@ module.exports = {
     checkStationsValueChanges,
     getStationLastUpdates,
     getLatestStationsData,
+    getVisitorStats,
+    incrementVisitorCount,
+    setVisitorCount,
     MAX_RECORDS
 };

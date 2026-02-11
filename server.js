@@ -18,7 +18,11 @@ const {
     getStations: getStationsFromDB,
     cleanOldData,
     checkStationsValueChanges,
-    getLatestStationsData
+    getStationLastUpdates,
+    getLatestStationsData,
+    getVisitorStats,
+    incrementVisitorCount,
+    setVisitorCount
 } = require('./database');
 
 const app = express();
@@ -301,11 +305,12 @@ app.post('/api/delete-user', verifyToken, (req, res) => {
 // ============================================
 // VISITOR TRACKING API
 // ============================================
-// In-memory visitor tracking (in production, use database)
+// Visitor tracking sử dụng PostgreSQL database
+// currentVisitors và todayVisitors vẫn dùng RAM để tính real-time online users
+// totalVisitors lưu trong database để không bị reset khi restart
 const visitorStats = {
-    currentVisitors: new Map(), // sessionId -> { timestamp, page }
-    todayVisitors: new Set(),   // Set of session IDs for today
-    totalVisitors: 20102347,    // Starting count from provided value
+    currentVisitors: new Map(), // sessionId -> { timestamp, page } (online users)
+    todayVisitors: new Set(),   // Set of session IDs for today (unique visitors today)
     lastResetDate: new Date().toDateString()
 };
 
@@ -335,23 +340,28 @@ setInterval(() => {
 }, 60000);
 
 // Register a new visit
-app.post('/api/visitors/register', (req, res) => {
+app.post('/api/visitors/register', async (req, res) => {
     try {
         const { page, timestamp } = req.body;
         
         // Generate or get session ID from header
         let sessionId = req.headers['x-session-id'] || crypto.randomBytes(16).toString('hex');
         
-        // Update current visitors
+        // Update current visitors (online users)
         visitorStats.currentVisitors.set(sessionId, {
             timestamp: Date.now(),
             page: page || '/'
         });
         
         // Check if this is a new visitor today
+        let dbStats;
         if (!visitorStats.todayVisitors.has(sessionId)) {
             visitorStats.todayVisitors.add(sessionId);
-            visitorStats.totalVisitors++;
+            // Increment in database
+            dbStats = await incrementVisitorCount();
+        } else {
+            // Just get current stats from database
+            dbStats = await getVisitorStats();
         }
         
         res.json({
@@ -360,7 +370,7 @@ app.post('/api/visitors/register', (req, res) => {
             stats: {
                 currentVisitors: visitorStats.currentVisitors.size,
                 todayVisitors: visitorStats.todayVisitors.size,
-                totalVisitors: visitorStats.totalVisitors
+                totalVisitors: dbStats.total_visitors
             }
         });
     } catch (error) {
@@ -370,16 +380,19 @@ app.post('/api/visitors/register', (req, res) => {
 });
 
 // Get current visitor statistics
-app.get('/api/visitors/stats', (req, res) => {
+app.get('/api/visitors/stats', async (req, res) => {
     try {
         cleanupStaleVisitors();
         checkDailyReset();
+        
+        // Get total visitors from database
+        const dbStats = await getVisitorStats();
         
         res.json({
             success: true,
             currentVisitors: visitorStats.currentVisitors.size,
             todayVisitors: visitorStats.todayVisitors.size,
-            totalVisitors: visitorStats.totalVisitors
+            totalVisitors: dbStats.total_visitors
         });
     } catch (error) {
         console.error('Error getting visitor stats:', error);
