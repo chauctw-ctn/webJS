@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Old project folder (backup)
+webJS/
+
 # Logs
 *.log
 npm-debug.log*
