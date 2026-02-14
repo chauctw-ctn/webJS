@@ -42,9 +42,9 @@ module.exports = {
             'GS2_NM1': 'NHÀ MÁY SỐ 2 - GIẾNG SỐ 1',
             'GTACVAN': 'GIẾNG TẮC VẠN',
             'QT1_NM2': 'QT1-NM2 (Quan trắc NM2)',
-            'QT2': 'QT2 (182/GP-BTNMT)',
+            'QT2': 'QT2M (36/GP-BTNMT)',
             'QT2_NM2': 'QT2-NM2 (Quan trắc NM2)',
-            'QT2M': 'QT2 (182/GP-BTNMT)',
+            'QT2M': 'QT2M (36/GP-BTNMT)',
             'QT5': 'QT5 (Quan trắc)'
         },
         parameterNameMap: {

@@ -26,7 +26,7 @@ const MQTT_STATION_COORDINATES = {
     'NHÀ MÁY SỐ 2 - GIẾNG SỐ 1': { lat: 9.173416, lng: 105.209793 },
     'GIẾNG TẮC VẠN': { lat: 9.163367389961877, lng: 105.25151245767171 },
     'QT1-NM2 (Quan trắc NM2)': { lat: 9.205658, lng: 105.12963 },
-    'QT2 (182/GP-BTNMT)': { lat: 9.179219, lng: 105.139376 },
+    'QT2M (36/GP-BTNMT)': { lat: 9.179219, lng: 105.139376 },
     'QT2-NM2 (Quan trắc NM2)': { lat: 9.203337, lng: 105.129712 },
     'QT5 (Quan trắc)': { lat: 9.178642307966712, lng: 105.1542747288355 }
 };

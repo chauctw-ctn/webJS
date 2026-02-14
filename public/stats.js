@@ -129,6 +129,7 @@ function updateCurrentTime() {
 
 /**
  * Set default date values
+ * Mặc định hiển thị dữ liệu từ 0 giờ 00 phút đến 23 giờ 59 phút của ngày hiện tại
  */
 function setDefaultDates() {
     const now = new Date();
@@ -136,6 +137,9 @@ function setDefaultDates() {
     
     document.getElementById('start-date').value = dateStr;
     document.getElementById('end-date').value = dateStr;
+    
+    // Log để xác nhận thời gian mặc định
+    console.log('⏰ Thời gian mặc định:', `${dateStr} 00:00:00 đến ${dateStr} 23:59:59 (GMT+7)`);
 }
 
 /**
@@ -415,6 +419,7 @@ async function loadStatsData() {
             limit: 50000
         });
         
+        console.log('⏰ Đang tải dữ liệu từ:', `${startDate} 00:00:00 đến ${endDate} 23:59:59 (GMT+7)`);
         console.log('Fetching from API:', `/api/stats?${queryParams}`);
         const response = await fetch(`/api/stats?${queryParams}`);
         
